@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { AppRepository } from '@domain/ports';
 import type { Pack } from '@domain/types';
+import type { EventType } from '@shared/types';
 import {
   createOutboxEvent,
   getProductDetail,
@@ -40,7 +41,7 @@ export class SqliteRepository implements AppRepository {
     return getProductDetail(this.requireDb(), productId);
   }
 
-  async createOutboxEvent(type: 'FOUND' | 'NOT_FOUND', payload: Record<string, unknown>) {
+  async createOutboxEvent(type: EventType, payload: Record<string, unknown>) {
     return createOutboxEvent(this.requireDb(), type, payload);
   }
 

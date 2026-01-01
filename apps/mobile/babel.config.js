@@ -14,7 +14,7 @@ module.exports = function (api) {
             '@domain': './src/domain',
             '@data': './src/data',
             '@sync': './src/sync',
-            '@shared': './src/shared',
+            '@shared': '../../packages/shared/src',
           },
         },
       ],

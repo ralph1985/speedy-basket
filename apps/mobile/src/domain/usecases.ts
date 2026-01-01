@@ -1,5 +1,6 @@
 import type { AppRepository } from './ports';
 import type { Pack } from './types';
+import type { EventType } from '@shared/types';
 
 export async function initApp(repo: AppRepository) {
   await repo.init();
@@ -23,7 +24,7 @@ export async function loadProductDetail(repo: AppRepository, productId: number) 
 
 export async function recordOutboxEvent(
   repo: AppRepository,
-  type: 'FOUND' | 'NOT_FOUND',
+  type: EventType,
   payload: Record<string, unknown>
 ) {
   return repo.createOutboxEvent(type, payload);

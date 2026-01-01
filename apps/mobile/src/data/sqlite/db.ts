@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import type { OutboxEventItem, Pack, ProductDetail, ProductListItem, ZoneItem } from '@domain/types';
+import type { EventType } from '@shared/types';
 
 const DB_NAME = 'speedy_basket.db';
 
@@ -158,7 +159,7 @@ export async function listZones(db: SQLite.SQLiteDatabase) {
 
 export async function createOutboxEvent(
   db: SQLite.SQLiteDatabase,
-  type: 'FOUND' | 'NOT_FOUND',
+  type: EventType,
   payload: Record<string, unknown>
 ) {
   const id = `evt_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
