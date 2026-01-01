@@ -1,0 +1,55 @@
+{
+  "version": "v1",
+  "stores": [
+    {
+      "id": 1,
+      "name": "Demo Store"
+    }
+  ],
+  "zones": [
+    {
+      "id": 1,
+      "store_id": 1,
+      "name": "Entrada",
+      "polygon_or_meta": "{\"shape\":\"rect\"}"
+    },
+    {
+      "id": 2,
+      "store_id": 1,
+      "name": "Lacteos",
+      "polygon_or_meta": "{\"shape\":\"rect\"}"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "Leche",
+      "brand": "Generica",
+      "ean": "000000000001",
+      "category": "Lacteos"
+    },
+    {
+      "id": 2,
+      "name": "Pan",
+      "brand": "Generica",
+      "ean": "000000000002",
+      "category": "Panaderia"
+    }
+  ],
+  "product_locations": [
+    {
+      "product_id": 1,
+      "store_id": 1,
+      "zone_id": 2,
+      "confidence": 0.6,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "product_id": 2,
+      "store_id": 1,
+      "zone_id": 1,
+      "confidence": 0.4,
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

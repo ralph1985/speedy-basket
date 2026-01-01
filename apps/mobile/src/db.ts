@@ -50,6 +50,11 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
       created_at TEXT NOT NULL,
       sent_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 }
 
@@ -67,4 +72,79 @@ export async function getStoreCount(db: SQLite.SQLiteDatabase) {
     'SELECT COUNT(*) as count FROM stores'
   );
   return row?.count ?? 0;
+}
+
+export async function getMetaValue(db: SQLite.SQLiteDatabase, key: string) {
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM app_meta WHERE key = ?',
+    [key]
+  );
+  return row?.value ?? null;
+}
+
+export async function setMetaValue(db: SQLite.SQLiteDatabase, key: string, value: string) {
+  await db.runAsync('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)', [
+    key,
+    value,
+  ]);
+}
+
+type Pack = {
+  version: string;
+  stores: Array<{ id: number; name: string }>;
+  zones: Array<{ id: number; store_id: number; name: string; polygon_or_meta?: string }>;
+  products: Array<{
+    id: number;
+    name: string;
+    brand?: string;
+    ean?: string;
+    category?: string;
+  }>;
+  product_locations: Array<{
+    product_id: number;
+    store_id: number;
+    zone_id?: number | null;
+    confidence?: number | null;
+    updated_at?: string | null;
+  }>;
+};
+
+export async function importPackIfNeeded(db: SQLite.SQLiteDatabase, pack: Pack) {
+  const existingVersion = await getMetaValue(db, 'pack_version');
+  const storeCount = await getStoreCount(db);
+  if (existingVersion && storeCount > 0) return false;
+
+  for (const store of pack.stores) {
+    await db.runAsync('INSERT OR IGNORE INTO stores (id, name) VALUES (?, ?)', [
+      store.id,
+      store.name,
+    ]);
+  }
+  for (const zone of pack.zones) {
+    await db.runAsync(
+      'INSERT OR IGNORE INTO zones (id, store_id, name, polygon_or_meta) VALUES (?, ?, ?, ?)',
+      [zone.id, zone.store_id, zone.name, zone.polygon_or_meta ?? null]
+    );
+  }
+  for (const product of pack.products) {
+    await db.runAsync(
+      'INSERT OR IGNORE INTO products (id, name, brand, ean, category) VALUES (?, ?, ?, ?, ?)',
+      [product.id, product.name, product.brand ?? null, product.ean ?? null, product.category ?? null]
+    );
+  }
+  for (const location of pack.product_locations) {
+    await db.runAsync(
+      'INSERT OR IGNORE INTO product_locations (product_id, store_id, zone_id, confidence, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [
+        location.product_id,
+        location.store_id,
+        location.zone_id ?? null,
+        location.confidence ?? null,
+        location.updated_at ?? null,
+      ]
+    );
+  }
+
+  await setMetaValue(db, 'pack_version', pack.version);
+  return true;
 }

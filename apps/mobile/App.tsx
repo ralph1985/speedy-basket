@@ -1,7 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { ensureSeedStore, getStoreCount, initDatabase, openDatabase } from './src/db';
+import { getStoreCount, importPackIfNeeded, initDatabase, openDatabase } from './src/db';
+import pack from './assets/pack.json';
 
 export default function App() {
   const [status, setStatus] = useState('Initializing...');
@@ -13,7 +14,7 @@ export default function App() {
       try {
         const db = await openDatabase();
         await initDatabase(db);
-        await ensureSeedStore(db);
+        await importPackIfNeeded(db, pack);
         const count = await getStoreCount(db);
         if (mounted) {
           setStoreCount(count);
