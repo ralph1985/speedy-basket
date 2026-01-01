@@ -148,3 +148,56 @@ export async function importPackIfNeeded(db: SQLite.SQLiteDatabase, pack: Pack) 
   await setMetaValue(db, 'pack_version', pack.version);
   return true;
 }
+
+export type ProductListItem = {
+  id: number;
+  name: string;
+  zoneName: string | null;
+};
+
+export async function listProducts(db: SQLite.SQLiteDatabase, search = '') {
+  const pattern = `%${search.toLowerCase()}%`;
+  const rows = await db.getAllAsync<ProductListItem>(
+    `SELECT p.id, p.name, z.name as zoneName
+     FROM products p
+     LEFT JOIN product_locations pl ON pl.product_id = p.id
+     LEFT JOIN zones z ON z.id = pl.zone_id
+     WHERE LOWER(p.name) LIKE ?
+     ORDER BY p.name ASC`,
+    [pattern]
+  );
+  return rows;
+}
+
+export type ProductDetail = {
+  id: number;
+  name: string;
+  brand: string | null;
+  category: string | null;
+  zoneName: string | null;
+};
+
+export async function getProductDetail(db: SQLite.SQLiteDatabase, productId: number) {
+  return db.getFirstAsync<ProductDetail>(
+    `SELECT p.id, p.name, p.brand, p.category, z.name as zoneName
+     FROM products p
+     LEFT JOIN product_locations pl ON pl.product_id = p.id
+     LEFT JOIN zones z ON z.id = pl.zone_id
+     WHERE p.id = ?`,
+    [productId]
+  );
+}
+
+export async function createOutboxEvent(
+  db: SQLite.SQLiteDatabase,
+  type: 'FOUND' | 'NOT_FOUND',
+  payload: Record<string, unknown>
+) {
+  const id = `evt_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+  const createdAt = new Date().toISOString();
+  await db.runAsync(
+    'INSERT INTO outbox_events (id, type, payload_json, created_at) VALUES (?, ?, ?, ?)',
+    [id, type, JSON.stringify(payload), createdAt]
+  );
+  return id;
+}
