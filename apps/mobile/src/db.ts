@@ -109,10 +109,12 @@ type Pack = {
   }>;
 };
 
-export async function importPackIfNeeded(db: SQLite.SQLiteDatabase, pack: Pack) {
-  const existingVersion = await getMetaValue(db, 'pack_version');
-  const storeCount = await getStoreCount(db);
-  if (existingVersion && storeCount > 0) return false;
+export async function importPack(db: SQLite.SQLiteDatabase, pack: Pack, force = false) {
+  if (!force) {
+    const existingVersion = await getMetaValue(db, 'pack_version');
+    const storeCount = await getStoreCount(db);
+    if (existingVersion && storeCount > 0) return false;
+  }
 
   for (const store of pack.stores) {
     await db.runAsync('INSERT OR IGNORE INTO stores (id, name) VALUES (?, ?)', [
@@ -147,6 +149,10 @@ export async function importPackIfNeeded(db: SQLite.SQLiteDatabase, pack: Pack) 
 
   await setMetaValue(db, 'pack_version', pack.version);
   return true;
+}
+
+export async function importPackIfNeeded(db: SQLite.SQLiteDatabase, pack: Pack) {
+  return importPack(db, pack, false);
 }
 
 export type ProductListItem = {
@@ -210,4 +216,42 @@ export async function createOutboxEvent(
     [id, type, JSON.stringify(payload), createdAt]
   );
   return id;
+}
+
+export type OutboxEventItem = {
+  id: string;
+  type: string;
+  created_at: string;
+  sent_at: string | null;
+  payload_json: string;
+};
+
+export async function listOutboxEvents(db: SQLite.SQLiteDatabase, limit = 20) {
+  return db.getAllAsync<OutboxEventItem>(
+    'SELECT id, type, payload_json, created_at, sent_at FROM outbox_events ORDER BY created_at DESC LIMIT ?',
+    [limit]
+  );
+}
+
+export async function getTableCounts(db: SQLite.SQLiteDatabase) {
+  const tables = ['stores', 'zones', 'products', 'product_locations', 'outbox_events'];
+  const counts: Record<string, number> = {};
+  for (const table of tables) {
+    const row = await db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM ${table}`
+    );
+    counts[table] = row?.count ?? 0;
+  }
+  return counts;
+}
+
+export async function resetDatabase(db: SQLite.SQLiteDatabase) {
+  await db.execAsync(`
+    DELETE FROM product_locations;
+    DELETE FROM products;
+    DELETE FROM zones;
+    DELETE FROM stores;
+    DELETE FROM outbox_events;
+    DELETE FROM app_meta;
+  `);
 }

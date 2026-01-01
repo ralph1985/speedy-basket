@@ -1,9 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,14 +16,19 @@ import {
   createOutboxEvent,
   getProductDetail,
   getStoreCount,
+  getTableCounts,
+  importPack,
   importPackIfNeeded,
   initDatabase,
   listZones,
   listProducts,
+  listOutboxEvents,
   openDatabase,
   ProductDetail,
   ProductListItem,
   ZoneItem,
+  OutboxEventItem,
+  resetDatabase,
 } from './src/db';
 import pack from './assets/pack.json';
 
@@ -30,12 +36,17 @@ export default function App() {
   const [status, setStatus] = useState('Initializing...');
   const [storeCount, setStoreCount] = useState<number | null>(null);
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
-  const [screen, setScreen] = useState<'list' | 'search' | 'detail' | 'map'>('list');
+  const [screen, setScreen] = useState<'list' | 'search' | 'detail' | 'map' | 'dev'>('list');
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState<ProductDetail | null>(null);
   const [zones, setZones] = useState<ZoneItem[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
+  const [devMode, setDevMode] = useState(false);
+  const [tableCounts, setTableCounts] = useState<Record<string, number>>({});
+  const [outboxEvents, setOutboxEvents] = useState<OutboxEventItem[]>([]);
+  const tapCount = useRef(0);
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -73,10 +84,19 @@ export default function App() {
     setZones(rows);
   };
 
+  const refreshDevData = async () => {
+    if (!db) return;
+    const counts = await getTableCounts(db);
+    const events = await listOutboxEvents(db, 20);
+    setTableCounts(counts);
+    setOutboxEvents(events);
+  };
+
   useEffect(() => {
     if (db) {
       loadProducts('');
       loadZones();
+      refreshDevData();
     }
   }, [db]);
 
@@ -95,12 +115,14 @@ export default function App() {
   };
 
   const navItems = useMemo(
-    () => [
-      { key: 'list' as const, label: 'Lista' },
-      { key: 'search' as const, label: 'Busqueda' },
-      { key: 'map' as const, label: 'Mapa' },
-    ],
-    []
+    () =>
+      [
+        { key: 'list' as const, label: 'Lista' },
+        { key: 'search' as const, label: 'Busqueda' },
+        { key: 'map' as const, label: 'Mapa' },
+        devMode ? { key: 'dev' as const, label: 'Dev' } : null,
+      ].filter(Boolean) as Array<{ key: 'list' | 'search' | 'map' | 'dev'; label: string }>,
+    [devMode]
   );
 
   const renderProduct = ({ item }: { item: ProductListItem }) => (
@@ -114,6 +136,7 @@ export default function App() {
     if (!db || !detail) return;
     await createOutboxEvent(db, type, { productId: detail.id });
     setStatus(`Event ${type} saved`);
+    refreshDevData();
   };
 
   const highlightZoneId = detail?.zoneId ?? null;
@@ -175,10 +198,35 @@ export default function App() {
     );
   };
 
+  const handleSecretTap = () => {
+    tapCount.current += 1;
+    if (tapTimer.current) clearTimeout(tapTimer.current);
+    tapTimer.current = setTimeout(() => {
+      tapCount.current = 0;
+    }, 1500);
+    if (tapCount.current >= 5) {
+      setDevMode((prev) => !prev);
+      tapCount.current = 0;
+    }
+  };
+
+  const handleReset = async () => {
+    if (!db) return;
+    await resetDatabase(db);
+    await importPack(db, pack, true);
+    await loadProducts('');
+    await loadZones();
+    await refreshDevData();
+    setStatus('DB reset + pack imported');
+    setScreen('list');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Speedy Basket</Text>
+        <Pressable onPress={handleSecretTap}>
+          <Text style={styles.title}>Speedy Basket</Text>
+        </Pressable>
         <Text style={styles.subtitle}>{status}</Text>
         <Text style={styles.subtitle}>Stores: {storeCount ?? '-'}</Text>
       </View>
@@ -249,6 +297,34 @@ export default function App() {
         </View>
       )}
 
+      {screen === 'dev' && (
+        <ScrollView contentContainerStyle={styles.devPanel}>
+          <Text style={styles.detailTitle}>Developer mode</Text>
+          <View style={styles.devSection}>
+            <Text style={styles.detailMeta}>DB counts</Text>
+            {Object.entries(tableCounts).map(([key, value]) => (
+              <Text key={key} style={styles.devRow}>
+                {key}: {value}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.devSection}>
+            <Text style={styles.detailMeta}>Outbox (ultimos 20)</Text>
+            {outboxEvents.map((eventItem) => (
+              <Text key={eventItem.id} style={styles.devRow}>
+                {eventItem.type} · {eventItem.created_at}
+              </Text>
+            ))}
+          </View>
+          <Pressable onPress={refreshDevData} style={styles.actionButton}>
+            <Text style={styles.actionText}>Refrescar</Text>
+          </Pressable>
+          <Pressable onPress={handleReset} style={styles.actionButton}>
+            <Text style={styles.actionText}>Reset + Import pack</Text>
+          </Pressable>
+        </ScrollView>
+      )}
+
       <StatusBar style="auto" />
     </SafeAreaView>
   );
@@ -316,6 +392,17 @@ const styles = StyleSheet.create({
   },
   mapCanvas: {
     alignItems: 'center',
+  },
+  devPanel: {
+    gap: 12,
+    paddingBottom: 24,
+  },
+  devSection: {
+    gap: 6,
+  },
+  devRow: {
+    color: '#444',
+    fontSize: 12,
   },
   searchInput: {
     borderWidth: 1,
