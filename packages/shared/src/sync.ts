@@ -39,3 +39,13 @@ export type PackDelta = {
   product_locations: PackDeltaTable<PackProductLocation>;
   checksum?: string;
 };
+
+export type PostEventsRequest = {
+  events: SyncEvent[];
+};
+
+export type PostEventsResponse = {
+  accepted: number;
+};
+
+export type GetPackDeltaResponse = PackDelta;

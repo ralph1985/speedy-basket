@@ -12,7 +12,10 @@ export type {
   NotFoundEventPayload,
   PackDelta,
   PackDeltaTable,
+  PostEventsRequest,
+  PostEventsResponse,
   ScannedEanEventPayload,
+  GetPackDeltaResponse,
   SyncEvent,
   SyncEventPayload,
 } from './sync';
