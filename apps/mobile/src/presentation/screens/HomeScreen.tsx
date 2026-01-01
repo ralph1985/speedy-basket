@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -68,22 +68,22 @@ export default function HomeScreen({ repo, pack }: Props) {
     };
   }, [repo, pack]);
 
-  const refreshDevData = async () => {
+  const refreshDevData = useCallback(async () => {
     const counts = await loadTableCounts(repo);
     const events = await loadOutboxEvents(repo, 20);
     setTableCounts(counts);
     setOutboxEvents(events);
-  };
+  }, [repo]);
 
-  const refreshListData = async () => {
+  const refreshListData = useCallback(async () => {
     const rows = await loadProducts(repo, search);
     setProducts(rows);
-  };
+  }, [repo, search]);
 
-  const refreshZones = async () => {
+  const refreshZones = useCallback(async () => {
     const rows = await loadZones(repo);
     setZones(rows);
-  };
+  }, [repo]);
 
   useEffect(() => {
     if (status === 'SQLite ready') {
@@ -91,7 +91,7 @@ export default function HomeScreen({ repo, pack }: Props) {
       refreshZones();
       refreshDevData();
     }
-  }, [status]);
+  }, [status, refreshDevData, refreshListData, refreshZones]);
 
   const openDetail = async (productId: number) => {
     const item = await loadProductDetail(repo, productId);
@@ -158,7 +158,7 @@ export default function HomeScreen({ repo, pack }: Props) {
               width={cellWidth}
               height={cellHeight}
               rx={8}
-              fill={isActive ? '#2563eb' : '#e5e7eb'}
+              fill={isActive ? colors.primary : colors.surface}
               onPress={() => setSelectedZoneId(zone.id)}
             />
           );
@@ -176,7 +176,7 @@ export default function HomeScreen({ repo, pack }: Props) {
               key={`label-${zone.id}`}
               x={labelX}
               y={labelY}
-              fill={isActive ? '#fff' : '#111'}
+              fill={isActive ? colors.onPrimary : colors.text}
               fontSize="12"
               fontWeight="600"
               textAnchor="middle"
@@ -317,28 +317,40 @@ export default function HomeScreen({ repo, pack }: Props) {
   );
 }
 
+const colors = {
+  background: '#ffffff',
+  text: '#111111',
+  textMuted: '#444444',
+  textSoft: '#666666',
+  border: '#dddddd',
+  borderLight: '#eeeeee',
+  primary: '#3b82f6',
+  onPrimary: '#ffffff',
+  surface: '#e5e7eb',
+};
+
 const styles = StyleSheet.create({
   actionButton: {
-    backgroundColor: '#111',
+    backgroundColor: colors.text,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   actionText: {
-    color: '#fff',
+    color: colors.onPrimary,
   },
   backLink: {
-    color: '#3b82f6',
+    color: colors.primary,
     marginTop: 8,
   },
   card: {
-    borderColor: '#eee',
+    borderColor: colors.borderLight,
     borderRadius: 10,
     borderWidth: 1,
     padding: 12,
   },
   cardMeta: {
-    color: '#666',
+    color: colors.textSoft,
     marginTop: 4,
   },
   cardTitle: {
@@ -346,7 +358,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
     flex: 1,
     padding: 24,
   },
@@ -358,7 +370,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   detailMeta: {
-    color: '#444',
+    color: colors.textMuted,
   },
   detailTitle: {
     fontSize: 18,
@@ -369,7 +381,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   devRow: {
-    color: '#444',
+    color: colors.textMuted,
     fontSize: 12,
   },
   devSection: {
@@ -396,20 +408,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   navButton: {
-    borderColor: '#ddd',
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   navButtonActive: {
-    borderColor: '#3b82f6',
+    borderColor: colors.primary,
   },
   navButtonText: {
-    color: '#111',
+    color: colors.text,
   },
   searchInput: {
-    borderColor: '#ddd',
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     marginBottom: 12,
@@ -420,7 +432,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   subtitle: {
-    color: '#444',
+    color: colors.textMuted,
   },
   title: {
     fontSize: 20,
