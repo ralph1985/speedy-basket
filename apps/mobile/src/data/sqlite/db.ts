@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { OutboxEventItem, Pack, ProductDetail, ProductListItem, ZoneItem } from '../../domain/types';
+import type { OutboxEventItem, Pack, ProductDetail, ProductListItem, ZoneItem } from '@domain/types';
 
 const DB_NAME = 'speedy_basket.db';
 

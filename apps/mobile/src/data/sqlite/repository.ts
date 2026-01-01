@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import type { AppRepository } from '../../domain/ports';
-import type { Pack } from '../../domain/types';
+import type { AppRepository } from '@domain/ports';
+import type { Pack } from '@domain/types';
 import {
   createOutboxEvent,
   getProductDetail,

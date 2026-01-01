@@ -1,6 +1,15 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["src/app/*"],
+      "@presentation/*": ["src/presentation/*"],
+      "@domain/*": ["src/domain/*"],
+      "@data/*": ["src/data/*"],
+      "@sync/*": ["src/sync/*"],
+      "@shared/*": ["src/shared/*"]
+    },
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "resolveJsonModule": true

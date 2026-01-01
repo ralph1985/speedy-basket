@@ -11,8 +11,8 @@ import {
   View,
 } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
-import type { AppRepository } from '../../domain/ports';
-import type { Pack, ProductDetail, ProductListItem, ZoneItem, OutboxEventItem } from '../../domain/types';
+import type { AppRepository } from '@domain/ports';
+import type { Pack, ProductDetail, ProductListItem, ZoneItem, OutboxEventItem } from '@domain/types';
 import {
   ensurePack,
   initApp,
@@ -24,7 +24,7 @@ import {
   loadZones,
   recordOutboxEvent,
   resetWithPack,
-} from '../../domain/usecases';
+} from '@domain/usecases';
 
 type Props = {
   repo: AppRepository;
@@ -318,106 +318,11 @@ export default function HomeScreen({ repo, pack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 24,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  subtitle: {
-    color: '#444',
-  },
-  header: {
-    marginBottom: 12,
-    gap: 4,
-  },
-  nav: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  navButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  navButtonActive: {
-    borderColor: '#3b82f6',
-  },
-  navButtonText: {
-    color: '#111',
-  },
-  list: {
-    gap: 10,
-    paddingBottom: 24,
-  },
-  card: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cardMeta: {
-    color: '#666',
-    marginTop: 4,
-  },
-  searchPanel: {
-    flex: 1,
-  },
-  mapPanel: {
-    flex: 1,
-    gap: 12,
-  },
-  mapCanvas: {
-    alignItems: 'center',
-  },
-  devPanel: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  devSection: {
-    gap: 6,
-  },
-  devRow: {
-    color: '#444',
-    fontSize: 12,
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12,
-  },
-  detail: {
-    gap: 10,
-  },
-  detailTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  detailMeta: {
-    color: '#444',
-  },
-  detailActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
   actionButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
     backgroundColor: '#111',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   actionText: {
     color: '#fff',
@@ -425,5 +330,100 @@ const styles = StyleSheet.create({
   backLink: {
     color: '#3b82f6',
     marginTop: 8,
+  },
+  card: {
+    borderColor: '#eee',
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+  },
+  cardMeta: {
+    color: '#666',
+    marginTop: 4,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  container: {
+    backgroundColor: '#fff',
+    flex: 1,
+    padding: 24,
+  },
+  detail: {
+    gap: 10,
+  },
+  detailActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  detailMeta: {
+    color: '#444',
+  },
+  detailTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  devPanel: {
+    gap: 12,
+    paddingBottom: 24,
+  },
+  devRow: {
+    color: '#444',
+    fontSize: 12,
+  },
+  devSection: {
+    gap: 6,
+  },
+  header: {
+    gap: 4,
+    marginBottom: 12,
+  },
+  list: {
+    gap: 10,
+    paddingBottom: 24,
+  },
+  mapCanvas: {
+    alignItems: 'center',
+  },
+  mapPanel: {
+    flex: 1,
+    gap: 12,
+  },
+  nav: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  navButton: {
+    borderColor: '#ddd',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  navButtonActive: {
+    borderColor: '#3b82f6',
+  },
+  navButtonText: {
+    color: '#111',
+  },
+  searchInput: {
+    borderColor: '#ddd',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchPanel: {
+    flex: 1,
+  },
+  subtitle: {
+    color: '#444',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '600',
   },
 });

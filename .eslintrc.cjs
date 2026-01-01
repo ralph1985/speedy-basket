@@ -36,6 +36,8 @@ module.exports = {
       rules: {
         'react/react-in-jsx-scope': 'off',
         'react-native/no-inline-styles': 'off',
+        'react-native/no-color-literals': 'off',
+        'react-hooks/exhaustive-deps': 'warn',
         'no-unused-vars': 'off',
         '@typescript-eslint/no-unused-vars': [
           'error',
