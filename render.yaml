@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: speedy-basket-api
+    env: node
+    rootDir: projects/speedy-basket/apps/api
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL
+        value: "true"
+      - key: PORT
+        value: "3001"

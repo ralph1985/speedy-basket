@@ -5,6 +5,7 @@
   "scripts": {
     "dev:app": "pnpm --filter mobile start",
     "dev:api": "pnpm --filter api dev",
+    "build": "pnpm --filter api build",
     "lint": "eslint .",
     "format": "prettier --write .",
     "prepare": "husky install",
