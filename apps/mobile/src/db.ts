@@ -174,18 +174,28 @@ export type ProductDetail = {
   name: string;
   brand: string | null;
   category: string | null;
+  zoneId: number | null;
   zoneName: string | null;
 };
 
 export async function getProductDetail(db: SQLite.SQLiteDatabase, productId: number) {
   return db.getFirstAsync<ProductDetail>(
-    `SELECT p.id, p.name, p.brand, p.category, z.name as zoneName
+    `SELECT p.id, p.name, p.brand, p.category, pl.zone_id as zoneId, z.name as zoneName
      FROM products p
      LEFT JOIN product_locations pl ON pl.product_id = p.id
      LEFT JOIN zones z ON z.id = pl.zone_id
      WHERE p.id = ?`,
     [productId]
   );
+}
+
+export type ZoneItem = {
+  id: number;
+  name: string;
+};
+
+export async function listZones(db: SQLite.SQLiteDatabase) {
+  return db.getAllAsync<ZoneItem>('SELECT id, name FROM zones ORDER BY id ASC');
 }
 
 export async function createOutboxEvent(

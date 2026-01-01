@@ -10,16 +10,19 @@ import {
   View,
 } from 'react-native';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import {
   createOutboxEvent,
   getProductDetail,
   getStoreCount,
   importPackIfNeeded,
   initDatabase,
+  listZones,
   listProducts,
   openDatabase,
   ProductDetail,
   ProductListItem,
+  ZoneItem,
 } from './src/db';
 import pack from './assets/pack.json';
 
@@ -27,10 +30,12 @@ export default function App() {
   const [status, setStatus] = useState('Initializing...');
   const [storeCount, setStoreCount] = useState<number | null>(null);
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
-  const [screen, setScreen] = useState<'list' | 'search' | 'detail'>('list');
+  const [screen, setScreen] = useState<'list' | 'search' | 'detail' | 'map'>('list');
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState<ProductDetail | null>(null);
+  const [zones, setZones] = useState<ZoneItem[]>([]);
+  const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -62,8 +67,17 @@ export default function App() {
     setProducts(rows);
   };
 
+  const loadZones = async () => {
+    if (!db) return;
+    const rows = await listZones(db);
+    setZones(rows);
+  };
+
   useEffect(() => {
-    if (db) loadProducts('');
+    if (db) {
+      loadProducts('');
+      loadZones();
+    }
   }, [db]);
 
   const openDetail = async (productId: number) => {
@@ -84,6 +98,7 @@ export default function App() {
     () => [
       { key: 'list' as const, label: 'Lista' },
       { key: 'search' as const, label: 'Busqueda' },
+      { key: 'map' as const, label: 'Mapa' },
     ],
     []
   );
@@ -99,6 +114,65 @@ export default function App() {
     if (!db || !detail) return;
     await createOutboxEvent(db, type, { productId: detail.id });
     setStatus(`Event ${type} saved`);
+  };
+
+  const highlightZoneId = detail?.zoneId ?? null;
+  const activeZoneId = highlightZoneId ?? selectedZoneId;
+
+  const renderZoneMap = () => {
+    const columns = 2;
+    const cellWidth = 120;
+    const cellHeight = 80;
+    const padding = 10;
+    const width = columns * cellWidth + (columns + 1) * padding;
+    const rows = Math.max(1, Math.ceil(zones.length / columns));
+    const height = rows * cellHeight + (rows + 1) * padding;
+
+    return (
+      <Svg width={width} height={height}>
+        {zones.map((zone, index) => {
+          const row = Math.floor(index / columns);
+          const col = index % columns;
+          const x = padding + col * (cellWidth + padding);
+          const y = padding + row * (cellHeight + padding);
+          const isActive = zone.id === activeZoneId;
+          return (
+            <Rect
+              key={zone.id}
+              x={x}
+              y={y}
+              width={cellWidth}
+              height={cellHeight}
+              rx={8}
+              fill={isActive ? '#2563eb' : '#e5e7eb'}
+              onPress={() => setSelectedZoneId(zone.id)}
+            />
+          );
+        })}
+        {zones.map((zone, index) => {
+          const row = Math.floor(index / columns);
+          const col = index % columns;
+          const x = padding + col * (cellWidth + padding);
+          const y = padding + row * (cellHeight + padding);
+          const labelX = x + cellWidth / 2;
+          const labelY = y + cellHeight / 2 + 4;
+          const isActive = zone.id === activeZoneId;
+          return (
+            <SvgText
+              key={`label-${zone.id}`}
+              x={labelX}
+              y={labelY}
+              fill={isActive ? '#fff' : '#111'}
+              fontSize="12"
+              fontWeight="600"
+              textAnchor="middle"
+            >
+              {zone.name}
+            </SvgText>
+          );
+        })}
+      </Svg>
+    );
   };
 
   return (
@@ -166,6 +240,15 @@ export default function App() {
         </View>
       )}
 
+      {screen === 'map' && (
+        <View style={styles.mapPanel}>
+          <Text style={styles.detailMeta}>
+            Zona activa: {activeZoneId ?? '-'}
+          </Text>
+          <View style={styles.mapCanvas}>{renderZoneMap()}</View>
+        </View>
+      )}
+
       <StatusBar style="auto" />
     </SafeAreaView>
   );
@@ -226,6 +309,13 @@ const styles = StyleSheet.create({
   },
   searchPanel: {
     flex: 1,
+  },
+  mapPanel: {
+    flex: 1,
+    gap: 12,
+  },
+  mapCanvas: {
+    alignItems: 'center',
   },
   searchInput: {
     borderWidth: 1,
