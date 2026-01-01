@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import type { OutboxEventItem, Pack, ProductDetail, ProductListItem, ZoneItem } from '../../domain/types';
 
 const DB_NAME = 'speedy_basket.db';
 
@@ -58,15 +59,6 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
   `);
 }
 
-export async function ensureSeedStore(db: SQLite.SQLiteDatabase) {
-  const row = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM stores'
-  );
-  if (!row || row.count === 0) {
-    await db.runAsync('INSERT INTO stores (name) VALUES (?)', ['Demo Store']);
-  }
-}
-
 export async function getStoreCount(db: SQLite.SQLiteDatabase) {
   const row = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM stores'
@@ -88,26 +80,6 @@ export async function setMetaValue(db: SQLite.SQLiteDatabase, key: string, value
     value,
   ]);
 }
-
-type Pack = {
-  version: string;
-  stores: Array<{ id: number; name: string }>;
-  zones: Array<{ id: number; store_id: number; name: string; polygon_or_meta?: string }>;
-  products: Array<{
-    id: number;
-    name: string;
-    brand?: string;
-    ean?: string;
-    category?: string;
-  }>;
-  product_locations: Array<{
-    product_id: number;
-    store_id: number;
-    zone_id?: number | null;
-    confidence?: number | null;
-    updated_at?: string | null;
-  }>;
-};
 
 export async function importPack(db: SQLite.SQLiteDatabase, pack: Pack, force = false) {
   if (!force) {
@@ -155,12 +127,6 @@ export async function importPackIfNeeded(db: SQLite.SQLiteDatabase, pack: Pack) 
   return importPack(db, pack, false);
 }
 
-export type ProductListItem = {
-  id: number;
-  name: string;
-  zoneName: string | null;
-};
-
 export async function listProducts(db: SQLite.SQLiteDatabase, search = '') {
   const pattern = `%${search.toLowerCase()}%`;
   const rows = await db.getAllAsync<ProductListItem>(
@@ -175,15 +141,6 @@ export async function listProducts(db: SQLite.SQLiteDatabase, search = '') {
   return rows;
 }
 
-export type ProductDetail = {
-  id: number;
-  name: string;
-  brand: string | null;
-  category: string | null;
-  zoneId: number | null;
-  zoneName: string | null;
-};
-
 export async function getProductDetail(db: SQLite.SQLiteDatabase, productId: number) {
   return db.getFirstAsync<ProductDetail>(
     `SELECT p.id, p.name, p.brand, p.category, pl.zone_id as zoneId, z.name as zoneName
@@ -194,11 +151,6 @@ export async function getProductDetail(db: SQLite.SQLiteDatabase, productId: num
     [productId]
   );
 }
-
-export type ZoneItem = {
-  id: number;
-  name: string;
-};
 
 export async function listZones(db: SQLite.SQLiteDatabase) {
   return db.getAllAsync<ZoneItem>('SELECT id, name FROM zones ORDER BY id ASC');
@@ -217,14 +169,6 @@ export async function createOutboxEvent(
   );
   return id;
 }
-
-export type OutboxEventItem = {
-  id: string;
-  type: string;
-  created_at: string;
-  sent_at: string | null;
-  payload_json: string;
-};
 
 export async function listOutboxEvents(db: SQLite.SQLiteDatabase, limit = 20) {
   return db.getAllAsync<OutboxEventItem>(
