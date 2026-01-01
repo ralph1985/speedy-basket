@@ -27,6 +27,26 @@ module.exports = {
       },
     },
     {
+      files: ['apps/api/**/*.ts'],
+      env: {
+        node: true,
+      },
+      parser: '@typescript-eslint/parser',
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+      plugins: ['@typescript-eslint'],
+      extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
+      rules: {
+        'no-unused-vars': 'off',
+        '@typescript-eslint/no-unused-vars': [
+          'error',
+          { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+        ],
+      },
+    },
+    {
       files: ['apps/mobile/**/*.{ts,tsx}'],
       env: {
         browser: true,
