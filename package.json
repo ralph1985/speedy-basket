@@ -5,11 +5,34 @@
   "scripts": {
     "dev:app": "pnpm --filter mobile start",
     "dev:api": "pnpm --filter api dev",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "prepare": "husky install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "packageManager": "pnpm@10.14.0",
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "7.18.0",
+    "@typescript-eslint/parser": "7.18.0",
+    "eslint": "8.57.0",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-plugin-react": "7.35.0",
+    "eslint-plugin-react-hooks": "4.6.0",
+    "eslint-plugin-react-native": "4.1.0",
+    "husky": "9.1.6",
+    "lint-staged": "15.2.10",
+    "prettier": "3.3.3"
+  },
+  "lint-staged": {
+    "*.{js,ts,tsx}": [
+      "eslint --fix"
+    ],
+    "*.{json,md,css,scss}": [
+      "prettier --write"
+    ]
+  }
 }
