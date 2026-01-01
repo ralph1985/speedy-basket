@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDbPool } from '../src/infra/db/client';
