@@ -52,6 +52,33 @@ export function createEventRepository(): EventRepository {
 
       const result = await pool.query(query, values);
 
+      const storeUpdates = new Map<number, string>();
+      events.forEach((event) => {
+        const storeId = extractStoreId(event);
+        const prev = storeUpdates.get(storeId);
+        if (!prev || new Date(event.created_at) > new Date(prev)) {
+          storeUpdates.set(storeId, event.created_at);
+        }
+      });
+
+      if (storeUpdates.size > 0) {
+        const storeValues: Array<number | string> = [];
+        const storePlaceholders = Array.from(storeUpdates.entries())
+          .map(([storeId, version], index) => {
+            const offset = index * 2;
+            storeValues.push(storeId, version);
+            return `($${offset + 1}, $${offset + 2})`;
+          })
+          .join(', ');
+        const storeQuery = `
+          INSERT INTO store_packs (store_id, version)
+          VALUES ${storePlaceholders}
+          ON CONFLICT (store_id)
+          DO UPDATE SET version = EXCLUDED.version, created_at = NOW()
+        `;
+        await pool.query(storeQuery, storeValues);
+      }
+
       const foundEvents = events.filter(isFoundEvent);
       if (foundEvents.length > 0) {
         const foundValues: Array<number | string | null> = [];
