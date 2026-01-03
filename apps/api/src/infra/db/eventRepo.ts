@@ -14,6 +14,14 @@ function isFoundEvent(
   return event.type === 'FOUND';
 }
 
+function isNotFoundEvent(
+  event: SyncEvent
+): event is SyncEvent & {
+  payload: { productId: number; storeId: number };
+} {
+  return event.type === 'NOT_FOUND';
+}
+
 export function createEventRepository(): EventRepository {
   return {
     async addEvents(events) {
@@ -74,6 +82,38 @@ export function createEventRepository(): EventRepository {
             updated_at = EXCLUDED.updated_at
         `;
         await pool.query(upsertQuery, foundValues);
+      }
+
+      const notFoundEvents = events.filter(isNotFoundEvent);
+      if (notFoundEvents.length > 0) {
+        const confidence = 0.2;
+        const notFoundValues: Array<number | string | null> = [];
+        const notFoundPlaceholders = notFoundEvents
+          .map((event, index) => {
+            const offset = index * 5;
+            notFoundValues.push(
+              event.payload.productId,
+              event.payload.storeId,
+              null,
+              confidence,
+              event.created_at
+            );
+            return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${
+              offset + 5
+            })`;
+          })
+          .join(', ');
+
+        const notFoundQuery = `
+          INSERT INTO product_locations (product_id, store_id, zone_id, confidence, updated_at)
+          VALUES ${notFoundPlaceholders}
+          ON CONFLICT (product_id, store_id)
+          DO UPDATE SET
+            zone_id = EXCLUDED.zone_id,
+            confidence = EXCLUDED.confidence,
+            updated_at = EXCLUDED.updated_at
+        `;
+        await pool.query(notFoundQuery, notFoundValues);
       }
 
       return result.rowCount ?? 0;
