@@ -46,20 +46,20 @@ export function createPackRepository(): PackRepository {
         [storeId]
       );
 
-      const stores = storesResult.rows.map((row) => ({
+      const stores = storesResult.rows.map((row: PackStore) => ({
         ...row,
         id: Number(row.id),
       }));
-      const zones = zonesResult.rows.map((row) => ({
+      const zones = zonesResult.rows.map((row: PackZone) => ({
         ...row,
         id: Number(row.id),
         store_id: Number(row.store_id),
       }));
-      const products = productsResult.rows.map((row) => ({
+      const products = productsResult.rows.map((row: PackProduct) => ({
         ...row,
         id: Number(row.id),
       }));
-      const productLocations = locationsResult.rows.map((row) => ({
+      const productLocations = locationsResult.rows.map((row: PackProductLocation) => ({
         ...row,
         product_id: Number(row.product_id),
         store_id: Number(row.store_id),
