@@ -63,7 +63,7 @@ export default function HomeScreen({ repo, pack }: Props) {
   const [detail, setDetail] = useState<ProductDetail | null>(null);
   const [zones, setZones] = useState<ZoneItem[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
-  const [devMode, setDevMode] = useState(false);
+  const [devMode] = useState(true);
   const [tableCounts, setTableCounts] = useState<Record<string, number>>({});
   const [outboxEvents, setOutboxEvents] = useState<OutboxEventItem[]>([]);
   const tapCount = useRef(0);
@@ -222,10 +222,6 @@ export default function HomeScreen({ repo, pack }: Props) {
     tapTimer.current = setTimeout(() => {
       tapCount.current = 0;
     }, 1500);
-    if (tapCount.current >= 5) {
-      setDevMode((prev) => !prev);
-      tapCount.current = 0;
-    }
   };
 
   const handleReset = async () => {
