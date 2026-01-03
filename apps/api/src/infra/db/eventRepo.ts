@@ -54,7 +54,6 @@ export function createEventRepository(): EventRepository {
 
       const foundEvents = events.filter(isFoundEvent);
       if (foundEvents.length > 0) {
-        const confidence = 0.7;
         const foundValues: Array<number | string | null> = [];
         const foundPlaceholders = foundEvents
           .map((event, index) => {
@@ -63,7 +62,7 @@ export function createEventRepository(): EventRepository {
               event.payload.productId,
               event.payload.storeId,
               event.payload.zoneId ?? null,
-              confidence,
+              0.7,
               event.created_at
             );
             return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${
@@ -78,7 +77,7 @@ export function createEventRepository(): EventRepository {
           ON CONFLICT (product_id, store_id)
           DO UPDATE SET
             zone_id = EXCLUDED.zone_id,
-            confidence = EXCLUDED.confidence,
+            confidence = LEAST(1, COALESCE(product_locations.confidence, 0.5) + 0.1),
             updated_at = EXCLUDED.updated_at
         `;
         await pool.query(upsertQuery, foundValues);
@@ -86,7 +85,6 @@ export function createEventRepository(): EventRepository {
 
       const notFoundEvents = events.filter(isNotFoundEvent);
       if (notFoundEvents.length > 0) {
-        const confidence = 0.2;
         const notFoundValues: Array<number | string | null> = [];
         const notFoundPlaceholders = notFoundEvents
           .map((event, index) => {
@@ -95,7 +93,7 @@ export function createEventRepository(): EventRepository {
               event.payload.productId,
               event.payload.storeId,
               null,
-              confidence,
+              0.2,
               event.created_at
             );
             return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${
@@ -109,8 +107,12 @@ export function createEventRepository(): EventRepository {
           VALUES ${notFoundPlaceholders}
           ON CONFLICT (product_id, store_id)
           DO UPDATE SET
-            zone_id = EXCLUDED.zone_id,
-            confidence = EXCLUDED.confidence,
+            zone_id = CASE
+              WHEN GREATEST(0, COALESCE(product_locations.confidence, 0.5) - 0.2) < 0.3
+                THEN NULL
+              ELSE product_locations.zone_id
+            END,
+            confidence = GREATEST(0, COALESCE(product_locations.confidence, 0.5) - 0.2),
             updated_at = EXCLUDED.updated_at
         `;
         await pool.query(notFoundQuery, notFoundValues);
