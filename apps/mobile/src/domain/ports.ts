@@ -7,6 +7,7 @@ import type {
   ZoneItem,
 } from './types';
 import type { EventType } from '@shared/types';
+import type { PackDelta } from '@shared/sync';
 
 export interface AppRepository {
   init(): Promise<void>;
@@ -16,7 +17,12 @@ export interface AppRepository {
   getProductDetail(productId: number): Promise<ProductDetail | null>;
   createOutboxEvent(type: EventType, payload: Record<string, unknown>): Promise<string>;
   listOutboxEvents(limit: number): Promise<OutboxEventItem[]>;
+  listPendingOutboxEvents(limit: number): Promise<OutboxEventItem[]>;
+  markOutboxEventsSent(ids: string[]): Promise<void>;
   getTableCounts(): Promise<TableCounts>;
   resetAndImportPack(pack: Pack): Promise<void>;
   ensurePack(pack: Pack): Promise<boolean>;
+  getPackVersion(): Promise<string | null>;
+  setPackVersion(version: string): Promise<void>;
+  applyPackDelta(delta: PackDelta): Promise<void>;
 }

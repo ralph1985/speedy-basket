@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import type { OutboxEventItem, Pack, ProductDetail, ProductListItem, ZoneItem } from '@domain/types';
 import type { EventType } from '@shared/types';
+import type { PackDelta } from '@shared/sync';
 
 const DB_NAME = 'speedy_basket.db';
 
@@ -178,6 +179,22 @@ export async function listOutboxEvents(db: SQLite.SQLiteDatabase, limit = 20) {
   );
 }
 
+export async function listPendingOutboxEvents(db: SQLite.SQLiteDatabase, limit = 50) {
+  return db.getAllAsync<OutboxEventItem>(
+    'SELECT id, type, payload_json, created_at, sent_at FROM outbox_events WHERE sent_at IS NULL ORDER BY created_at ASC LIMIT ?',
+    [limit]
+  );
+}
+
+export async function markOutboxEventsSent(db: SQLite.SQLiteDatabase, ids: string[]) {
+  if (ids.length === 0) return;
+  const placeholders = ids.map(() => '?').join(', ');
+  await db.runAsync(
+    `UPDATE outbox_events SET sent_at = ? WHERE id IN (${placeholders})`,
+    [new Date().toISOString(), ...ids]
+  );
+}
+
 export async function getTableCounts(db: SQLite.SQLiteDatabase) {
   const tables = ['stores', 'zones', 'products', 'product_locations', 'outbox_events'];
   const counts: Record<string, number> = {};
@@ -199,4 +216,50 @@ export async function resetDatabase(db: SQLite.SQLiteDatabase) {
     DELETE FROM outbox_events;
     DELETE FROM app_meta;
   `);
+}
+
+export async function applyPackDelta(db: SQLite.SQLiteDatabase, delta: PackDelta) {
+  for (const store of delta.stores.upserts) {
+    await db.runAsync('INSERT OR REPLACE INTO stores (id, name) VALUES (?, ?)', [
+      store.id,
+      store.name,
+    ]);
+  }
+  for (const zone of delta.zones.upserts) {
+    await db.runAsync(
+      'INSERT OR REPLACE INTO zones (id, store_id, name, polygon_or_meta) VALUES (?, ?, ?, ?)',
+      [zone.id, zone.store_id, zone.name, zone.polygon_or_meta ?? null]
+    );
+  }
+  for (const product of delta.products.upserts) {
+    await db.runAsync(
+      'INSERT OR REPLACE INTO products (id, name, brand, ean, category) VALUES (?, ?, ?, ?, ?)',
+      [product.id, product.name, product.brand ?? null, product.ean ?? null, product.category ?? null]
+    );
+  }
+  for (const location of delta.product_locations.upserts) {
+    await db.runAsync(
+      'INSERT OR REPLACE INTO product_locations (product_id, store_id, zone_id, confidence, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [
+        location.product_id,
+        location.store_id,
+        location.zone_id ?? null,
+        location.confidence ?? null,
+        location.updated_at ?? null,
+      ]
+    );
+  }
+
+  if (delta.stores.deletes.length > 0) {
+    const placeholders = delta.stores.deletes.map(() => '?').join(', ');
+    await db.runAsync(`DELETE FROM stores WHERE id IN (${placeholders})`, delta.stores.deletes);
+  }
+  if (delta.zones.deletes.length > 0) {
+    const placeholders = delta.zones.deletes.map(() => '?').join(', ');
+    await db.runAsync(`DELETE FROM zones WHERE id IN (${placeholders})`, delta.zones.deletes);
+  }
+  if (delta.products.deletes.length > 0) {
+    const placeholders = delta.products.deletes.map(() => '?').join(', ');
+    await db.runAsync(`DELETE FROM products WHERE id IN (${placeholders})`, delta.products.deletes);
+  }
 }

@@ -25,6 +25,29 @@ import {
   recordOutboxEvent,
   resetWithPack,
 } from '@domain/usecases';
+import type { PackDelta, SyncEvent } from '@shared/sync';
+import { API_BASE_URL, DEFAULT_STORE_ID } from '@app/config';
+
+const defaultStoreId = (pack: Pack) => pack.stores[0]?.id ?? DEFAULT_STORE_ID;
+
+async function fetchPackDelta(storeId: number, since?: string | null) {
+  const query = since ? `&since=${encodeURIComponent(since)}` : '';
+  const res = await fetch(`${API_BASE_URL}/pack?storeId=${storeId}${query}`);
+  if (!res.ok) throw new Error('Failed to fetch pack');
+  return res.json();
+}
+
+async function postEvents(events: SyncEvent[]) {
+  if (events.length === 0) return 0;
+  const res = await fetch(`${API_BASE_URL}/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ events }),
+  });
+  if (!res.ok) throw new Error('Failed to post events');
+  const data = await res.json();
+  return data.accepted ?? 0;
+}
 
 type Props = {
   repo: AppRepository;
@@ -125,7 +148,11 @@ export default function HomeScreen({ repo, pack }: Props) {
 
   const handleEvent = async (type: 'FOUND' | 'NOT_FOUND') => {
     if (!detail) return;
-    await recordOutboxEvent(repo, type, { productId: detail.id });
+    await recordOutboxEvent(repo, type, {
+      productId: detail.id,
+      storeId: defaultStoreId(pack),
+      zoneId: detail.zoneId ?? null,
+    });
     setStatus(`Event ${type} saved`);
     refreshDevData();
   };
@@ -209,6 +236,42 @@ export default function HomeScreen({ repo, pack }: Props) {
     setStatus('DB reset + pack imported');
     setScreen('list');
   };
+
+  const handleSync = useCallback(async () => {
+    try {
+      setStatus('Syncing...');
+      const storeId = defaultStoreId(pack);
+      const since = await repo.getPackVersion();
+      const delta = (await fetchPackDelta(storeId, since)) as PackDelta;
+      await repo.applyPackDelta(delta);
+
+      const pending = await repo.listPendingOutboxEvents(100);
+      const events = pending.map((eventItem) => {
+        const payload = JSON.parse(eventItem.payload_json) as Record<string, unknown>;
+        if (!payload.storeId) {
+          payload.storeId = storeId;
+        }
+        return {
+        id: eventItem.id,
+        type: eventItem.type,
+        created_at: eventItem.created_at,
+        payload,
+        };
+      }) as SyncEvent[];
+      const accepted = await postEvents(events);
+      if (accepted > 0) {
+        await repo.markOutboxEventsSent(pending.slice(0, accepted).map((item) => item.id));
+      }
+
+      await refreshListData();
+      await refreshZones();
+      await refreshDevData();
+      setStatus(`Sync ok (${accepted} events)`);
+    } catch (error) {
+      console.error('Sync failed', error);
+      setStatus('Sync failed');
+    }
+  }, [pack, refreshDevData, refreshListData, refreshZones, repo]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -308,6 +371,9 @@ export default function HomeScreen({ repo, pack }: Props) {
           </Pressable>
           <Pressable onPress={handleReset} style={styles.actionButton}>
             <Text style={styles.actionText}>Reset + Import pack</Text>
+          </Pressable>
+          <Pressable onPress={handleSync} style={styles.actionButton}>
+            <Text style={styles.actionText}>Sync now</Text>
           </Pressable>
         </ScrollView>
       )}

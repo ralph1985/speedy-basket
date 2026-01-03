@@ -1,20 +1,26 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { AppRepository } from '@domain/ports';
 import type { Pack } from '@domain/types';
+import type { PackDelta } from '@shared/sync';
 import type { EventType } from '@shared/types';
 import {
+  applyPackDelta,
   createOutboxEvent,
   getProductDetail,
   getStoreCount,
   getTableCounts,
+  getMetaValue,
   importPack,
   importPackIfNeeded,
   initDatabase,
   listOutboxEvents,
+  listPendingOutboxEvents,
   listProducts,
   listZones,
   openDatabase,
+  markOutboxEventsSent,
   resetDatabase,
+  setMetaValue,
 } from './db';
 
 export class SqliteRepository implements AppRepository {
@@ -49,6 +55,14 @@ export class SqliteRepository implements AppRepository {
     return listOutboxEvents(this.requireDb(), limit);
   }
 
+  async listPendingOutboxEvents(limit: number) {
+    return listPendingOutboxEvents(this.requireDb(), limit);
+  }
+
+  async markOutboxEventsSent(ids: string[]) {
+    await markOutboxEventsSent(this.requireDb(), ids);
+  }
+
   async getTableCounts() {
     return getTableCounts(this.requireDb());
   }
@@ -61,6 +75,19 @@ export class SqliteRepository implements AppRepository {
 
   async ensurePack(pack: Pack) {
     return importPackIfNeeded(this.requireDb(), pack);
+  }
+
+  async getPackVersion() {
+    return getMetaValue(this.requireDb(), 'pack_version');
+  }
+
+  async setPackVersion(version: string) {
+    await setMetaValue(this.requireDb(), 'pack_version', version);
+  }
+
+  async applyPackDelta(delta: PackDelta) {
+    await applyPackDelta(this.requireDb(), delta);
+    await this.setPackVersion(delta.version);
   }
 
   private requireDb() {
