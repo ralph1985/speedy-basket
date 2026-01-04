@@ -95,6 +95,7 @@ export default function HomeScreen({ repo, pack }: Props) {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [lastSyncStatus, setLastSyncStatus] = useState<'idle' | 'ok' | 'failed'>('idle');
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [lastSyncStats, setLastSyncStats] = useState<Record<string, string> | null>(null);
   const tapCount = useRef(0);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -292,6 +293,8 @@ export default function HomeScreen({ repo, pack }: Props) {
       const storeId = defaultStoreId(pack);
       let accepted = 0;
       let hasChanges = false;
+      const syncStartedAt = Date.now();
+      const pendingBefore = await repo.listPendingOutboxEvents(100);
       const maxAttempts = 3;
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
@@ -320,6 +323,18 @@ export default function HomeScreen({ repo, pack }: Props) {
           if (pending.length > 0) {
             hasChanges = true;
           }
+          const pendingAfter = await repo.listPendingOutboxEvents(100);
+          const durationMs = Date.now() - syncStartedAt;
+          setLastSyncStats({
+            accepted: `${accepted}`,
+            pending_before: `${pendingBefore.length}`,
+            pending_after: `${pendingAfter.length}`,
+            delta_stores: `${delta.stores.upserts.length}/${delta.stores.deletes.length}`,
+            delta_zones: `${delta.zones.upserts.length}/${delta.zones.deletes.length}`,
+            delta_products: `${delta.products.upserts.length}/${delta.products.deletes.length}`,
+            delta_locations: `${delta.product_locations.upserts.length}/${delta.product_locations.deletes.length}`,
+            duration_ms: `${durationMs}`,
+          });
           break;
         } catch (error) {
           if (attempt >= maxAttempts) {
@@ -359,6 +374,7 @@ export default function HomeScreen({ repo, pack }: Props) {
       setLastSyncError(message);
       await refreshDevData();
       await refreshSyncMeta();
+      setLastSyncStats(null);
     } finally {
       setIsSyncing(false);
     }
@@ -458,6 +474,16 @@ export default function HomeScreen({ repo, pack }: Props) {
               </Text>
             ))}
           </View>
+          {lastSyncStats ? (
+            <View style={styles.devSection}>
+              <Text style={styles.detailMeta}>Last sync stats</Text>
+              {Object.entries(lastSyncStats).map(([key, value]) => (
+                <Text key={key} style={styles.devRow}>
+                  {key}: {value}
+                </Text>
+              ))}
+            </View>
+          ) : null}
           <View style={styles.devSection}>
             <Text style={styles.detailMeta}>
               Outbox pendientes ({outboxEvents.length}/{tableCounts.outbox_events ?? 0})
