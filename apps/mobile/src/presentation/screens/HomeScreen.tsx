@@ -1,18 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Svg, { Rect, Text as SvgText } from 'react-native-svg';
-import { BottomNavigation, Button, Card, TextInput } from 'react-native-paper';
+import { SafeAreaView, StyleSheet, View } from 'react-native';
+import { BottomNavigation } from 'react-native-paper';
 import type { AppRepository } from '@domain/ports';
-import type { Pack, ProductDetail, ProductListItem, ZoneItem, OutboxEventItem } from '@domain/types';
+import type { Pack, ProductDetail, ProductListItem, ZoneItem } from '@domain/types';
 import {
   ensurePack,
   initApp,
@@ -28,13 +19,15 @@ import {
 } from '@domain/usecases';
 import type { PackDelta, SyncEvent } from '@shared/sync';
 import { API_BASE_URL, DEFAULT_STORE_ID } from '@app/config';
+import DevPanel from '@presentation/components/DevPanel';
+import MapPanel from '@presentation/components/MapPanel';
+import ProductDetailView from '@presentation/components/ProductDetail';
+import ProductList from '@presentation/components/ProductList';
+import SearchPanel from '@presentation/components/SearchPanel';
+import StatusHeader from '@presentation/components/StatusHeader';
+import colors from '@presentation/styles/colors';
 
 const defaultStoreId = (pack: Pack) => pack.stores[0]?.id ?? DEFAULT_STORE_ID;
-
-const formatTimestamp = (value: string | null) => {
-  if (!value) return 'never';
-  return value.replace('T', ' ').replace('Z', '');
-};
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
@@ -196,15 +189,6 @@ export default function HomeScreen({ repo, pack }: Props) {
 
   const activeTab = (routes[tabIndex]?.key ?? 'list') as TabKey;
 
-  const renderProduct = ({ item }: { item: ProductListItem }) => (
-    <Card style={styles.card} onPress={() => openDetail(item.id)}>
-      <Card.Content>
-        <Text style={styles.cardTitle}>{item.name}</Text>
-        <Text style={styles.cardMeta}>Zona: {item.zoneName ?? '-'}</Text>
-      </Card.Content>
-    </Card>
-  );
-
   const handleEvent = async (type: 'FOUND' | 'NOT_FOUND') => {
     if (!detail) return;
     await recordOutboxEvent(repo, type, {
@@ -218,62 +202,6 @@ export default function HomeScreen({ repo, pack }: Props) {
 
   const highlightZoneId = detail?.zoneId ?? null;
   const activeZoneId = highlightZoneId ?? selectedZoneId;
-
-  const renderZoneMap = () => {
-    const columns = 2;
-    const cellWidth = 120;
-    const cellHeight = 80;
-    const padding = 10;
-    const width = columns * cellWidth + (columns + 1) * padding;
-    const rows = Math.max(1, Math.ceil(zones.length / columns));
-    const height = rows * cellHeight + (rows + 1) * padding;
-
-    return (
-      <Svg width={width} height={height}>
-        {zones.map((zone, index) => {
-          const row = Math.floor(index / columns);
-          const col = index % columns;
-          const x = padding + col * (cellWidth + padding);
-          const y = padding + row * (cellHeight + padding);
-          const isActive = zone.id === activeZoneId;
-          return (
-            <Rect
-              key={zone.id}
-              x={x}
-              y={y}
-              width={cellWidth}
-              height={cellHeight}
-              rx={8}
-              fill={isActive ? colors.primary : colors.surface}
-              onPress={() => setSelectedZoneId(zone.id)}
-            />
-          );
-        })}
-        {zones.map((zone, index) => {
-          const row = Math.floor(index / columns);
-          const col = index % columns;
-          const x = padding + col * (cellWidth + padding);
-          const y = padding + row * (cellHeight + padding);
-          const labelX = x + cellWidth / 2;
-          const labelY = y + cellHeight / 2 + 4;
-          const isActive = zone.id === activeZoneId;
-          return (
-            <SvgText
-              key={`label-${zone.id}`}
-              x={labelX}
-              y={labelY}
-              fill={isActive ? colors.onPrimary : colors.text}
-              fontSize="12"
-              fontWeight="600"
-              textAnchor="middle"
-            >
-              {zone.name}
-            </SvgText>
-          );
-        })}
-      </Svg>
-    );
-  };
 
   const handleSecretTap = () => {
     tapCount.current += 1;
@@ -392,125 +320,54 @@ export default function HomeScreen({ repo, pack }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.header}>
-          <Pressable onPress={handleSecretTap}>
-            <Text style={styles.title}>Speedy Basket</Text>
-          </Pressable>
-          <Text style={styles.subtitle}>{status}</Text>
-          <Text style={styles.subtitle}>Stores: {storeCount ?? '-'}</Text>
-          <Text style={styles.subtitle}>
-            Last sync: {formatTimestamp(lastSyncAt)} ({lastSyncStatus})
-          </Text>
-          {lastSyncError ? <Text style={styles.subtitle}>Error: {lastSyncError}</Text> : null}
-          <Text style={styles.subtitle}>API: {API_BASE_URL}</Text>
-        </View>
+        <StatusHeader
+          status={status}
+          storeCount={storeCount}
+          lastSyncAt={lastSyncAt}
+          lastSyncStatus={lastSyncStatus}
+          lastSyncError={lastSyncError}
+          apiBaseUrl={API_BASE_URL}
+          onSecretTap={handleSecretTap}
+        />
 
         {showDetail && detail ? (
-          <View style={styles.detail}>
-            <Text style={styles.detailTitle}>{detail.name}</Text>
-            <Text style={styles.detailMeta}>Zona sugerida: {detail.zoneName ?? '-'}</Text>
-            <Text style={styles.detailMeta}>Categoria: {detail.category ?? '-'}</Text>
-            <View style={styles.detailActions}>
-              <Button mode="contained" onPress={() => handleEvent('FOUND')}>
-                <Text>Encontrado</Text>
-              </Button>
-              <Button mode="contained" onPress={() => handleEvent('NOT_FOUND')}>
-                <Text>No esta</Text>
-              </Button>
-            </View>
-            <Pressable onPress={() => setShowDetail(false)}>
-              <Text style={styles.backLink}>Volver a lista</Text>
-            </Pressable>
-          </View>
+          <ProductDetailView
+            detail={detail}
+            onFound={() => handleEvent('FOUND')}
+            onNotFound={() => handleEvent('NOT_FOUND')}
+            onBack={() => setShowDetail(false)}
+          />
         ) : null}
 
         {!showDetail && activeTab === 'list' && (
-          <FlatList
-            data={products}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderProduct}
-            contentContainerStyle={styles.list}
-          />
+          <ProductList products={products} onSelect={openDetail} />
         )}
 
         {!showDetail && activeTab === 'search' && (
-          <View style={styles.searchPanel}>
-            <TextInput
-              placeholder="Buscar producto"
-              value={search}
-              onChangeText={handleSearchChange}
-              mode="outlined"
-              style={styles.searchInput}
-            />
-            <FlatList
-              data={products}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={renderProduct}
-              contentContainerStyle={styles.list}
-            />
-          </View>
+          <SearchPanel
+            products={products}
+            search={search}
+            onSearchChange={handleSearchChange}
+            onSelect={openDetail}
+          />
         )}
 
         {!showDetail && activeTab === 'map' && (
-          <View style={styles.mapPanel}>
-            <Text style={styles.detailMeta}>Zona activa: {activeZoneId ?? '-'}</Text>
-            <View style={styles.mapCanvas}>{renderZoneMap()}</View>
-          </View>
+          <MapPanel zones={zones} activeZoneId={activeZoneId} onSelectZone={setSelectedZoneId} />
         )}
 
         {!showDetail && activeTab === 'dev' && (
-          <ScrollView contentContainerStyle={styles.devPanel}>
-            <Text style={styles.detailTitle}>Developer mode</Text>
-            <View style={styles.devSection}>
-              <Text style={styles.detailMeta}>API base</Text>
-              <Text style={styles.devRow}>{API_BASE_URL}</Text>
-            </View>
-            <View style={styles.devSection}>
-              <Text style={styles.detailMeta}>DB counts</Text>
-              {Object.entries(tableCounts).map(([key, value]) => (
-                <Text key={key} style={styles.devRow}>
-                  {key}: {value}
-                </Text>
-              ))}
-            </View>
-            {lastSyncStats ? (
-              <View style={styles.devSection}>
-                <Text style={styles.detailMeta}>Last sync stats</Text>
-                {Object.entries(lastSyncStats).map(([key, value]) => (
-                  <Text key={key} style={styles.devRow}>
-                    {key}: {value}
-                  </Text>
-                ))}
-              </View>
-            ) : null}
-            <View style={styles.devSection}>
-              <Text style={styles.detailMeta}>
-                Outbox pendientes ({outboxEvents.length}/{tableCounts.outbox_events ?? 0})
-              </Text>
-              {outboxEvents.map((eventItem) => (
-                <Text key={eventItem.id} style={styles.devRow}>
-                  {eventItem.type} · {eventItem.created_at}
-                </Text>
-              ))}
-            </View>
-            <View style={styles.devSection}>
-              <Text style={styles.detailMeta}>Outbox enviados (ultimos 20)</Text>
-              {sentOutboxEvents.map((eventItem) => (
-                <Text key={eventItem.id} style={styles.devRow}>
-                  {eventItem.type} · {eventItem.sent_at}
-                </Text>
-              ))}
-            </View>
-            <Button mode="contained" onPress={refreshDevData}>
-              <Text>Refrescar</Text>
-            </Button>
-            <Button mode="contained" onPress={handleReset}>
-              <Text>Reset + Import pack</Text>
-            </Button>
-            <Button mode="contained" onPress={handleSync} disabled={isSyncing}>
-              <Text>{isSyncing ? 'Syncing...' : 'Sync now'}</Text>
-            </Button>
-          </ScrollView>
+          <DevPanel
+            apiBaseUrl={API_BASE_URL}
+            tableCounts={tableCounts}
+            outboxPending={outboxEvents}
+            outboxSent={sentOutboxEvents}
+            lastSyncStats={lastSyncStats}
+            isSyncing={isSyncing}
+            onRefresh={refreshDevData}
+            onReset={handleReset}
+            onSync={handleSync}
+          />
         )}
       </View>
 
@@ -527,37 +384,7 @@ export default function HomeScreen({ repo, pack }: Props) {
   );
 }
 
-const colors = {
-  background: '#ffffff',
-  text: '#111111',
-  textMuted: '#444444',
-  textSoft: '#666666',
-  border: '#dddddd',
-  borderLight: '#eeeeee',
-  primary: '#3b82f6',
-  onPrimary: '#ffffff',
-  surface: '#e5e7eb',
-};
-
 const styles = StyleSheet.create({
-  backLink: {
-    color: colors.primary,
-    marginTop: 8,
-  },
-  card: {
-    borderColor: colors.borderLight,
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 12,
-  },
-  cardMeta: {
-    color: colors.textSoft,
-    marginTop: 4,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
   container: {
     backgroundColor: colors.background,
     flex: 1,
@@ -565,63 +392,5 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
-  },
-  detail: {
-    gap: 10,
-  },
-  detailActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  detailMeta: {
-    color: colors.textMuted,
-  },
-  detailTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  devPanel: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  devRow: {
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-  devSection: {
-    gap: 6,
-  },
-  header: {
-    gap: 4,
-    marginBottom: 12,
-  },
-  list: {
-    gap: 10,
-    paddingBottom: 24,
-  },
-  mapCanvas: {
-    alignItems: 'center',
-  },
-  mapPanel: {
-    flex: 1,
-    gap: 12,
-  },
-  searchInput: {
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  searchPanel: {
-    flex: 1,
-  },
-  subtitle: {
-    color: colors.textMuted,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
   },
 });
