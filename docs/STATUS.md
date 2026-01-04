@@ -2,14 +2,14 @@
 
 ## Que funciona hoy
 
-- [ ] App arranca
-- [ ] SQLite inicializada
-- [ ] Import pack local
-- [ ] Lista / busqueda
-- [ ] Mapa por zonas (SVG)
-- [ ] Outbox events
-- [ ] Sync: POST /events
-- [ ] Sync: GET /pack delta
+- [x] App arranca
+- [x] SQLite inicializada
+- [x] Import pack local
+- [x] Lista / busqueda
+- [x] Mapa por zonas (SVG)
+- [x] Outbox events
+- [x] Sync: POST /events
+- [x] Sync: GET /pack delta
 
 ## Que esta roto / pendiente critico
 
@@ -30,6 +30,6 @@
 
 ## Notas rapidas
 
-- Ultima vez que toque esto: YYYY-MM-DD
+- Ultima vez que toque esto: 04/01/2026
 - Idea original: app (React Native) para crear lista de la compra y sugerir el camino mas rapido dentro del supermercado con localizacion por zonas, offline first y con sincronizacion posterior.
 - ## Riesgos abiertos:
