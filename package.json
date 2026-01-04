@@ -6,6 +6,7 @@
     "dev:app": "pnpm --filter mobile start",
     "dev:api": "pnpm --filter api dev",
     "build": "pnpm --filter api build",
+    "typecheck": "pnpm --filter mobile typecheck && pnpm --filter api typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "prepare": "husky install",
