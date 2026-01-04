@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { SafeAreaView, StyleSheet, View } from 'react-native';
-import { BottomNavigation } from 'react-native-paper';
+import { BottomNavigation, TouchableRipple } from 'react-native-paper';
 import type { AppRepository } from '@domain/ports';
 import type { Pack, ProductDetail, ProductListItem, ZoneItem } from '@domain/types';
 import {
@@ -72,6 +72,11 @@ type Props = {
 };
 
 type TabKey = 'list' | 'search' | 'map' | 'dev';
+type TouchableProps = ComponentProps<typeof TouchableRipple> & { key?: string; route?: unknown };
+
+const renderBottomTouchable = ({ key, route: _route, ...props }: TouchableProps) => (
+  <TouchableRipple key={key} {...props} />
+);
 
 export default function HomeScreen({ repo, pack }: Props) {
   const [status, setStatus] = useState('Initializing...');
@@ -373,6 +378,7 @@ export default function HomeScreen({ repo, pack }: Props) {
 
       <BottomNavigation.Bar
         navigationState={{ index: tabIndex, routes }}
+        renderTouchable={renderBottomTouchable}
         onTabPress={({ route }) => {
           const nextIndex = routes.findIndex((item) => item.key === route.key);
           if (nextIndex >= 0) setTabIndex(nextIndex);
