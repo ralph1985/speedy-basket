@@ -2,30 +2,36 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import type { ProductDetail as ProductDetailType } from '@domain/types';
 import colors from '@presentation/styles/colors';
+import type { TFunction } from '@presentation/i18n';
 
 type Props = {
   detail: ProductDetailType;
   onFound: () => void;
   onNotFound: () => void;
   onBack: () => void;
+  t: TFunction;
 };
 
-export default function ProductDetail({ detail, onFound, onNotFound, onBack }: Props) {
+export default function ProductDetail({ detail, onFound, onNotFound, onBack, t }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{detail.name}</Text>
-      <Text style={styles.meta}>Zona sugerida: {detail.zoneName ?? '-'}</Text>
-      <Text style={styles.meta}>Categoria: {detail.category ?? '-'}</Text>
+      <Text style={styles.meta}>
+        {t('label.suggestedZone')}: {detail.zoneName ?? '-'}
+      </Text>
+      <Text style={styles.meta}>
+        {t('label.category')}: {detail.category ?? '-'}
+      </Text>
       <View style={styles.actions}>
         <Button mode="contained" onPress={onFound}>
-          <Text>Encontrado</Text>
+          <Text>{t('action.found')}</Text>
         </Button>
         <Button mode="contained" onPress={onNotFound}>
-          <Text>No esta</Text>
+          <Text>{t('action.notFound')}</Text>
         </Button>
       </View>
       <Pressable onPress={onBack}>
-        <Text style={styles.backLink}>Volver a lista</Text>
+        <Text style={styles.backLink}>{t('action.backToList')}</Text>
       </Pressable>
     </View>
   );

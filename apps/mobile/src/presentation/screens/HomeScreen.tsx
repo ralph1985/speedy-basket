@@ -27,6 +27,8 @@ import ProductList from '@presentation/components/ProductList';
 import SearchPanel from '@presentation/components/SearchPanel';
 import StatusHeader from '@presentation/components/StatusHeader';
 import colors from '@presentation/styles/colors';
+import SettingsPanel from '@presentation/components/SettingsPanel';
+import { createTranslator, isLanguage, type Language } from '@presentation/i18n';
 
 const defaultStoreId = (pack: Pack) => pack.stores[0]?.id ?? DEFAULT_STORE_ID;
 
@@ -72,7 +74,7 @@ type Props = {
   pack: Pack;
 };
 
-type TabKey = 'list' | 'search' | 'map' | 'dev';
+type TabKey = 'list' | 'search' | 'map' | 'dev' | 'settings';
 type TouchableProps = ComponentProps<typeof TouchableRipple> & { key?: string; route?: unknown };
 
 const renderBottomTouchable = ({ key, route: _route, ...props }: TouchableProps) => (
@@ -80,7 +82,8 @@ const renderBottomTouchable = ({ key, route: _route, ...props }: TouchableProps)
 );
 
 export default function HomeScreen({ repo, pack }: Props) {
-  const [status, setStatus] = useState('Initializing...');
+  const [statusKey, setStatusKey] = useState('status.initializing');
+  const [statusParams, setStatusParams] = useState<Record<string, string | number>>({});
   const [storeCount, setStoreCount] = useState<number | null>(null);
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [search, setSearch] = useState('');
@@ -89,6 +92,9 @@ export default function HomeScreen({ repo, pack }: Props) {
   const [zones, setZones] = useState<ZoneItem[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [devMode] = useState(true);
+  const [language, setLanguage] = useState<Language>('es');
+  const t = useMemo(() => createTranslator(language), [language]);
+  const statusText = t(statusKey, statusParams);
   const [tableCounts, setTableCounts] = useState<Record<string, number>>({});
   const [outboxEvents, setOutboxEvents] = useState<OutboxEventItem[]>([]);
   const [sentOutboxEvents, setSentOutboxEvents] = useState<OutboxEventItem[]>([]);
@@ -98,6 +104,7 @@ export default function HomeScreen({ repo, pack }: Props) {
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [lastSyncStats, setLastSyncStats] = useState<Record<string, string> | null>(null);
   const [tabIndex, setTabIndex] = useState(0);
+  const [isReady, setIsReady] = useState(false);
   const tapCount = useRef(0);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -107,13 +114,24 @@ export default function HomeScreen({ repo, pack }: Props) {
       try {
         await initApp(repo);
         await ensurePack(repo, pack);
-        const count = await loadStoreCount(repo);
+        const [count, storedLanguage] = await Promise.all([
+          loadStoreCount(repo),
+          repo.getMetaValue('language'),
+        ]);
         if (mounted) {
           setStoreCount(count);
-          setStatus('SQLite ready');
+          if (isLanguage(storedLanguage)) {
+            setLanguage(storedLanguage);
+          }
+          setStatusKey('status.sqliteReady');
+          setStatusParams({});
+          setIsReady(true);
         }
       } catch (err) {
-        if (mounted) setStatus('SQLite init failed');
+        if (mounted) {
+          setStatusKey('status.sqliteInitFailed');
+          setStatusParams({});
+        }
         console.error('SQLite init failed', err);
       }
     };
@@ -161,13 +179,21 @@ export default function HomeScreen({ repo, pack }: Props) {
   }, [repo]);
 
   useEffect(() => {
-    if (status === 'SQLite ready') {
+    if (isReady) {
       refreshListData();
       refreshZones();
       refreshDevData();
       refreshSyncMeta();
     }
-  }, [status, refreshDevData, refreshListData, refreshZones, refreshSyncMeta]);
+  }, [isReady, refreshDevData, refreshListData, refreshZones, refreshSyncMeta]);
+
+  useEffect(() => {
+    if (isReady) {
+      repo.setMetaValue('language', language).catch((error) => {
+        console.error('Failed to persist language', error);
+      });
+    }
+  }, [isReady, language, repo]);
 
   const openDetail = async (productId: number) => {
     const item = await loadProductDetail(repo, productId);
@@ -183,15 +209,16 @@ export default function HomeScreen({ repo, pack }: Props) {
 
   const routes = useMemo(() => {
     const base = [
-      { key: 'list', title: 'Lista', focusedIcon: 'format-list-bulleted' },
-      { key: 'search', title: 'Busqueda', focusedIcon: 'magnify' },
-      { key: 'map', title: 'Mapa', focusedIcon: 'map-outline' },
+      { key: 'list', title: t('nav.list'), focusedIcon: 'format-list-bulleted' },
+      { key: 'search', title: t('nav.search'), focusedIcon: 'magnify' },
+      { key: 'map', title: t('nav.map'), focusedIcon: 'map-outline' },
+      { key: 'settings', title: t('nav.settings'), focusedIcon: 'cog-outline' },
     ];
     if (devMode) {
-      base.push({ key: 'dev', title: 'Dev', focusedIcon: 'wrench-outline' });
+      base.push({ key: 'dev', title: t('nav.dev'), focusedIcon: 'wrench-outline' });
     }
     return base;
-  }, [devMode]);
+  }, [devMode, t]);
 
   const activeTab = (routes[tabIndex]?.key ?? 'list') as TabKey;
 
@@ -202,7 +229,8 @@ export default function HomeScreen({ repo, pack }: Props) {
       storeId: defaultStoreId(pack),
       zoneId: detail.zoneId ?? null,
     });
-    setStatus(`Event ${type} saved`);
+    setStatusKey('status.eventSaved');
+    setStatusParams({ type: t(`eventType.${type}`) });
     refreshDevData();
   };
 
@@ -222,7 +250,8 @@ export default function HomeScreen({ repo, pack }: Props) {
     await refreshListData();
     await refreshZones();
     await refreshDevData();
-    setStatus('DB reset + pack imported');
+    setStatusKey('status.resetPack');
+    setStatusParams({});
     setShowDetail(false);
     setTabIndex(0);
   };
@@ -231,7 +260,8 @@ export default function HomeScreen({ repo, pack }: Props) {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
-      setStatus('Syncing...');
+      setStatusKey('status.syncing');
+      setStatusParams({});
       await repo.setMetaValue('sync_last_attempt', new Date().toISOString());
       const storeId = defaultStoreId(pack);
       let accepted = 0;
@@ -284,7 +314,8 @@ export default function HomeScreen({ repo, pack }: Props) {
             throw error;
           }
           const backoff = 400 * attempt;
-          setStatus(`Sync retry ${attempt}/${maxAttempts}...`);
+          setStatusKey('status.syncRetry');
+          setStatusParams({ attempt, max: maxAttempts });
           await sleep(backoff);
         }
       }
@@ -300,14 +331,17 @@ export default function HomeScreen({ repo, pack }: Props) {
       setLastSyncStatus('ok');
       setLastSyncError(null);
       if (!hasChanges) {
-        setStatus('Sync ok (no changes)');
+        setStatusKey('status.syncOkNoChanges');
+        setStatusParams({});
       } else {
-        setStatus(`Sync ok (${accepted} events)`);
+        setStatusKey('status.syncOkEvents');
+        setStatusParams({ accepted });
       }
     } catch (error) {
       const message = getErrorMessage(error);
       console.error('Sync failed', error);
-      setStatus(`Sync failed: ${message}`);
+      setStatusKey('status.syncFailed');
+      setStatusParams({ message });
       const now = new Date().toISOString();
       await repo.setMetaValue('sync_last_at', now);
       await repo.setMetaValue('sync_last_status', 'failed');
@@ -327,13 +361,14 @@ export default function HomeScreen({ repo, pack }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <StatusHeader
-          status={status}
+          status={statusText}
           storeCount={storeCount}
           lastSyncAt={lastSyncAt}
           lastSyncStatus={lastSyncStatus}
           lastSyncError={lastSyncError}
           apiBaseUrl={API_BASE_URL}
           showDevInfo={activeTab === 'dev'}
+          t={t}
           onSecretTap={handleSecretTap}
         />
 
@@ -343,11 +378,12 @@ export default function HomeScreen({ repo, pack }: Props) {
             onFound={() => handleEvent('FOUND')}
             onNotFound={() => handleEvent('NOT_FOUND')}
             onBack={() => setShowDetail(false)}
+            t={t}
           />
         ) : null}
 
         {!showDetail && activeTab === 'list' && (
-          <ProductList products={products} onSelect={openDetail} />
+          <ProductList products={products} onSelect={openDetail} t={t} />
         )}
 
         {!showDetail && activeTab === 'search' && (
@@ -356,11 +392,21 @@ export default function HomeScreen({ repo, pack }: Props) {
             search={search}
             onSearchChange={handleSearchChange}
             onSelect={openDetail}
+            t={t}
           />
         )}
 
         {!showDetail && activeTab === 'map' && (
-          <MapPanel zones={zones} activeZoneId={activeZoneId} onSelectZone={setSelectedZoneId} />
+          <MapPanel
+            zones={zones}
+            activeZoneId={activeZoneId}
+            onSelectZone={setSelectedZoneId}
+            t={t}
+          />
+        )}
+
+        {!showDetail && activeTab === 'settings' && (
+          <SettingsPanel language={language} onChangeLanguage={setLanguage} t={t} />
         )}
 
         {!showDetail && activeTab === 'dev' && (
@@ -374,6 +420,7 @@ export default function HomeScreen({ repo, pack }: Props) {
             onRefresh={refreshDevData}
             onReset={handleReset}
             onSync={handleSync}
+            t={t}
           />
         )}
       </View>

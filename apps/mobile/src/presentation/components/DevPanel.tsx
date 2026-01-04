@@ -3,6 +3,7 @@ import { Button, SegmentedButtons } from 'react-native-paper';
 import type { OutboxEventItem } from '@domain/types';
 import colors from '@presentation/styles/colors';
 import { useMemo, useState } from 'react';
+import type { TFunction } from '@presentation/i18n';
 
 type Props = {
   apiBaseUrl: string;
@@ -14,6 +15,7 @@ type Props = {
   onRefresh: () => void;
   onReset: () => void;
   onSync: () => void;
+  t: TFunction;
 };
 
 export default function DevPanel({
@@ -26,32 +28,32 @@ export default function DevPanel({
   onRefresh,
   onReset,
   onSync,
+  t,
 }: Props) {
   const [section, setSection] = useState('overview');
   const sections = useMemo(
     () => [
-      { value: 'overview', label: 'Resumen' },
-      { value: 'sync', label: 'Sync' },
-      { value: 'outbox', label: 'Outbox' },
-      { value: 'actions', label: 'Acciones' },
+      { value: 'overview', label: t('dev.section.overview') },
+      { value: 'sync', label: t('dev.section.sync') },
+      { value: 'outbox', label: t('dev.section.outbox') },
     ],
-    []
+    [t]
   );
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.panel}>
-        <Text style={styles.title}>Developer mode</Text>
+        <Text style={styles.title}>{t('dev.title')}</Text>
         <SegmentedButtons value={section} onValueChange={setSection} buttons={sections} />
 
         {section === 'overview' ? (
           <>
             <View style={styles.section}>
-              <Text style={styles.meta}>API base</Text>
+              <Text style={styles.meta}>{t('dev.apiBase')}</Text>
               <Text style={styles.row}>{apiBaseUrl}</Text>
             </View>
             <View style={styles.section}>
-              <Text style={styles.meta}>DB counts</Text>
+              <Text style={styles.meta}>{t('dev.dbCounts')}</Text>
               {Object.entries(tableCounts).map(([key, value]) => (
                 <Text key={key} style={styles.row}>
                   {key}: {value}
@@ -65,7 +67,7 @@ export default function DevPanel({
           <>
             {lastSyncStats ? (
               <View style={styles.section}>
-                <Text style={styles.meta}>Last sync stats</Text>
+                <Text style={styles.meta}>{t('dev.lastSyncStats')}</Text>
                 {Object.entries(lastSyncStats).map(([key, value]) => (
                   <Text key={key} style={styles.row}>
                     {key}: {value}
@@ -73,7 +75,7 @@ export default function DevPanel({
                 ))}
               </View>
             ) : (
-              <Text style={styles.meta}>Sin stats de sync todavia.</Text>
+              <Text style={styles.meta}>{t('dev.noSyncStats')}</Text>
             )}
           </>
         ) : null}
@@ -82,21 +84,21 @@ export default function DevPanel({
           <>
             <View style={styles.section}>
               <Text style={styles.meta}>
-                Outbox pendientes ({outboxPending.length}/{tableCounts.outbox_events ?? 0})
+                {t('dev.outboxPending')} ({outboxPending.length}/{tableCounts.outbox_events ?? 0})
               </Text>
-              {outboxPending.map((eventItem) => (
-                <Text key={eventItem.id} style={styles.row}>
-                  {eventItem.type} · {eventItem.created_at}
-                </Text>
-              ))}
+            {outboxPending.map((eventItem) => (
+              <Text key={eventItem.id} style={styles.row}>
+                {t(`eventType.${eventItem.type}`)} · {eventItem.created_at}
+              </Text>
+            ))}
             </View>
             <View style={styles.section}>
-              <Text style={styles.meta}>Outbox enviados (ultimos 20)</Text>
-              {outboxSent.map((eventItem) => (
-                <Text key={eventItem.id} style={styles.row}>
-                  {eventItem.type} · {eventItem.sent_at}
-                </Text>
-              ))}
+              <Text style={styles.meta}>{t('dev.outboxSent')}</Text>
+            {outboxSent.map((eventItem) => (
+              <Text key={eventItem.id} style={styles.row}>
+                {t(`eventType.${eventItem.type}`)} · {eventItem.sent_at}
+              </Text>
+            ))}
             </View>
           </>
         ) : null}
@@ -104,13 +106,13 @@ export default function DevPanel({
 
       <View style={styles.actions}>
         <Button mode="contained" onPress={onRefresh}>
-          <Text>Refrescar</Text>
+          <Text>{t('action.refresh')}</Text>
         </Button>
         <Button mode="contained" onPress={onReset}>
-          <Text>Reset + Import pack</Text>
+          <Text>{t('action.resetPack')}</Text>
         </Button>
         <Button mode="contained" onPress={onSync} disabled={isSyncing}>
-          <Text>{isSyncing ? 'Syncing...' : 'Sync now'}</Text>
+          <Text>{isSyncing ? t('action.syncing') : t('action.syncNow')}</Text>
         </Button>
       </View>
     </View>

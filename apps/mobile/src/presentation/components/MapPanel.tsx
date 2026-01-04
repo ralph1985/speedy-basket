@@ -2,14 +2,16 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import type { ZoneItem } from '@domain/types';
 import colors from '@presentation/styles/colors';
+import type { TFunction } from '@presentation/i18n';
 
 type Props = {
   zones: ZoneItem[];
   activeZoneId: number | null;
   onSelectZone: (zoneId: number) => void;
+  t: TFunction;
 };
 
-export default function MapPanel({ zones, activeZoneId, onSelectZone }: Props) {
+export default function MapPanel({ zones, activeZoneId, onSelectZone, t }: Props) {
   const columns = 2;
   const cellWidth = 120;
   const cellHeight = 80;
@@ -20,7 +22,9 @@ export default function MapPanel({ zones, activeZoneId, onSelectZone }: Props) {
 
   return (
     <View style={styles.panel}>
-      <Text style={styles.meta}>Zona activa: {activeZoneId ?? '-'}</Text>
+      <Text style={styles.meta}>
+        {t('label.activeZone')}: {activeZoneId ?? '-'}
+      </Text>
       <View style={styles.canvas}>
         <Svg width={width} height={height}>
           {zones.map((zone, index) => {

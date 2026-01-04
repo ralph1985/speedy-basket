@@ -2,19 +2,21 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { Card, TextInput } from 'react-native-paper';
 import type { ProductListItem } from '@domain/types';
 import colors from '@presentation/styles/colors';
+import type { TFunction } from '@presentation/i18n';
 
 type Props = {
   products: ProductListItem[];
   search: string;
   onSearchChange: (value: string) => void;
   onSelect: (productId: number) => void;
+  t: TFunction;
 };
 
-export default function SearchPanel({ products, search, onSearchChange, onSelect }: Props) {
+export default function SearchPanel({ products, search, onSearchChange, onSelect, t }: Props) {
   return (
     <View style={styles.panel}>
       <TextInput
-        placeholder="Buscar producto"
+        placeholder={t('search.placeholder')}
         value={search}
         onChangeText={onSearchChange}
         mode="outlined"
@@ -27,7 +29,9 @@ export default function SearchPanel({ products, search, onSearchChange, onSelect
           <Card style={styles.card} onPress={() => onSelect(item.id)}>
             <Card.Content>
               <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardMeta}>Zona: {item.zoneName ?? '-'}</Text>
+              <Text style={styles.cardMeta}>
+                {t('label.zone')}: {item.zoneName ?? '-'}
+              </Text>
             </Card.Content>
           </Card>
         )}

@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import colors from '@presentation/styles/colors';
+import type { TFunction } from '@presentation/i18n';
 
 const formatTimestamp = (value: string | null) => {
   if (!value) return 'never';
@@ -14,6 +15,7 @@ type Props = {
   lastSyncError: string | null;
   apiBaseUrl: string;
   showDevInfo: boolean;
+  t: TFunction;
   onSecretTap: () => void;
 };
 
@@ -25,6 +27,7 @@ export default function StatusHeader({
   lastSyncError,
   apiBaseUrl,
   showDevInfo,
+  t,
   onSecretTap,
 }: Props) {
   return (
@@ -35,12 +38,21 @@ export default function StatusHeader({
       {showDevInfo ? (
         <>
           <Text style={styles.subtitle}>{status}</Text>
-          <Text style={styles.subtitle}>Stores: {storeCount ?? '-'}</Text>
           <Text style={styles.subtitle}>
-            Last sync: {formatTimestamp(lastSyncAt)} ({lastSyncStatus})
+            {t('header.stores')}: {storeCount ?? '-'}
           </Text>
-          {lastSyncError ? <Text style={styles.subtitle}>Error: {lastSyncError}</Text> : null}
-          <Text style={styles.subtitle}>API: {apiBaseUrl}</Text>
+          <Text style={styles.subtitle}>
+            {t('header.lastSync')}: {formatTimestamp(lastSyncAt)} (
+            {t(`syncStatus.${lastSyncStatus}`)})
+          </Text>
+          {lastSyncError ? (
+            <Text style={styles.subtitle}>
+              {t('header.error')}: {lastSyncError}
+            </Text>
+          ) : null}
+          <Text style={styles.subtitle}>
+            {t('header.api')}: {apiBaseUrl}
+          </Text>
         </>
       ) : null}
     </View>
