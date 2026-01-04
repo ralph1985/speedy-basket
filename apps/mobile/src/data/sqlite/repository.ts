@@ -90,6 +90,14 @@ export class SqliteRepository implements AppRepository {
     await this.setPackVersion(delta.version);
   }
 
+  async getMetaValue(key: string) {
+    return getMetaValue(this.requireDb(), key);
+  }
+
+  async setMetaValue(key: string, value: string) {
+    await setMetaValue(this.requireDb(), key, value);
+  }
+
   private requireDb() {
     if (!this.db) {
       throw new Error('Database not initialized');

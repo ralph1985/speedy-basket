@@ -25,4 +25,6 @@ export interface AppRepository {
   getPackVersion(): Promise<string | null>;
   setPackVersion(version: string): Promise<void>;
   applyPackDelta(delta: PackDelta): Promise<void>;
+  getMetaValue(key: string): Promise<string | null>;
+  setMetaValue(key: string, value: string): Promise<void>;
 }

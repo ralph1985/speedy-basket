@@ -30,6 +30,17 @@ import { API_BASE_URL, DEFAULT_STORE_ID } from '@app/config';
 
 const defaultStoreId = (pack: Pack) => pack.stores[0]?.id ?? DEFAULT_STORE_ID;
 
+const formatTimestamp = (value: string | null) => {
+  if (!value) return 'never';
+  return value.replace('T', ' ').replace('Z', '');
+};
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'Unknown error';
+};
+
 async function fetchPackDelta(storeId: number, since?: string | null) {
   const query = since ? `&since=${encodeURIComponent(since)}` : '';
   const res = await fetch(`${API_BASE_URL}/pack?storeId=${storeId}${query}`);
@@ -66,6 +77,10 @@ export default function HomeScreen({ repo, pack }: Props) {
   const [devMode] = useState(true);
   const [tableCounts, setTableCounts] = useState<Record<string, number>>({});
   const [outboxEvents, setOutboxEvents] = useState<OutboxEventItem[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [lastSyncStatus, setLastSyncStatus] = useState<'idle' | 'ok' | 'failed'>('idle');
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const tapCount = useRef(0);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -98,6 +113,21 @@ export default function HomeScreen({ repo, pack }: Props) {
     setOutboxEvents(events);
   }, [repo]);
 
+  const refreshSyncMeta = useCallback(async () => {
+    const [at, status, error] = await Promise.all([
+      repo.getMetaValue('sync_last_at'),
+      repo.getMetaValue('sync_last_status'),
+      repo.getMetaValue('sync_last_error'),
+    ]);
+    setLastSyncAt(at);
+    if (status === 'ok' || status === 'failed') {
+      setLastSyncStatus(status);
+    } else {
+      setLastSyncStatus('idle');
+    }
+    setLastSyncError(error && error.trim().length > 0 ? error : null);
+  }, [repo]);
+
   const refreshListData = useCallback(async () => {
     const rows = await loadProducts(repo, search);
     setProducts(rows);
@@ -113,8 +143,9 @@ export default function HomeScreen({ repo, pack }: Props) {
       refreshListData();
       refreshZones();
       refreshDevData();
+      refreshSyncMeta();
     }
-  }, [status, refreshDevData, refreshListData, refreshZones]);
+  }, [status, refreshDevData, refreshListData, refreshZones, refreshSyncMeta]);
 
   const openDetail = async (productId: number) => {
     const item = await loadProductDetail(repo, productId);
@@ -234,8 +265,11 @@ export default function HomeScreen({ repo, pack }: Props) {
   };
 
   const handleSync = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
     try {
       setStatus('Syncing...');
+      await repo.setMetaValue('sync_last_attempt', new Date().toISOString());
       const storeId = defaultStoreId(pack);
       const since = await repo.getPackVersion();
       const delta = (await fetchPackDelta(storeId, since)) as PackDelta;
@@ -262,21 +296,45 @@ export default function HomeScreen({ repo, pack }: Props) {
       await refreshListData();
       await refreshZones();
       await refreshDevData();
+      const now = new Date().toISOString();
+      await repo.setMetaValue('sync_last_at', now);
+      await repo.setMetaValue('sync_last_status', 'ok');
+      await repo.setMetaValue('sync_last_error', '');
+      setLastSyncAt(now);
+      setLastSyncStatus('ok');
+      setLastSyncError(null);
       setStatus(`Sync ok (${accepted} events)`);
     } catch (error) {
+      const message = getErrorMessage(error);
       console.error('Sync failed', error);
-      setStatus('Sync failed');
+      setStatus(`Sync failed: ${message}`);
+      const now = new Date().toISOString();
+      await repo.setMetaValue('sync_last_at', now);
+      await repo.setMetaValue('sync_last_status', 'failed');
+      await repo.setMetaValue('sync_last_error', message);
+      setLastSyncAt(now);
+      setLastSyncStatus('failed');
+      setLastSyncError(message);
+      await refreshDevData();
+      await refreshSyncMeta();
+    } finally {
+      setIsSyncing(false);
     }
-  }, [pack, refreshDevData, refreshListData, refreshZones, repo]);
+  }, [isSyncing, pack, refreshDevData, refreshListData, refreshSyncMeta, refreshZones, repo]);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={handleSecretTap}>
-          <Text style={styles.title}>Speedy Basket</Text>
+        <Text style={styles.title}>Speedy Basket</Text>
         </Pressable>
         <Text style={styles.subtitle}>{status}</Text>
         <Text style={styles.subtitle}>Stores: {storeCount ?? '-'}</Text>
+        <Text style={styles.subtitle}>
+          Last sync: {formatTimestamp(lastSyncAt)} ({lastSyncStatus})
+        </Text>
+        {lastSyncError ? <Text style={styles.subtitle}>Error: {lastSyncError}</Text> : null}
+        <Text style={styles.subtitle}>API: {API_BASE_URL}</Text>
       </View>
 
       <View style={styles.nav}>
@@ -347,6 +405,10 @@ export default function HomeScreen({ repo, pack }: Props) {
         <ScrollView contentContainerStyle={styles.devPanel}>
           <Text style={styles.detailTitle}>Developer mode</Text>
           <View style={styles.devSection}>
+            <Text style={styles.detailMeta}>API base</Text>
+            <Text style={styles.devRow}>{API_BASE_URL}</Text>
+          </View>
+          <View style={styles.devSection}>
             <Text style={styles.detailMeta}>DB counts</Text>
             {Object.entries(tableCounts).map(([key, value]) => (
               <Text key={key} style={styles.devRow}>
@@ -368,8 +430,12 @@ export default function HomeScreen({ repo, pack }: Props) {
           <Pressable onPress={handleReset} style={styles.actionButton}>
             <Text style={styles.actionText}>Reset + Import pack</Text>
           </Pressable>
-          <Pressable onPress={handleSync} style={styles.actionButton}>
-            <Text style={styles.actionText}>Sync now</Text>
+          <Pressable
+            onPress={handleSync}
+            style={[styles.actionButton, isSyncing && styles.actionButtonDisabled]}
+            disabled={isSyncing}
+          >
+            <Text style={styles.actionText}>{isSyncing ? 'Syncing...' : 'Sync now'}</Text>
           </Pressable>
         </ScrollView>
       )}
@@ -397,6 +463,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
   },
   actionText: {
     color: colors.onPrimary,
