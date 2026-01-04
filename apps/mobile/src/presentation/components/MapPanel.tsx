@@ -84,5 +84,6 @@ const styles = StyleSheet.create({
   panel: {
     flex: 1,
     gap: 12,
+    paddingTop: 6,
   },
 });

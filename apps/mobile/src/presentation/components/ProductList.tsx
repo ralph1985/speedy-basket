@@ -16,7 +16,7 @@ export default function ProductList({ products, onSelect, t }: Props) {
       data={products}
       keyExtractor={(item) => item.id.toString()}
       renderItem={({ item }) => (
-        <Card style={styles.card} onPress={() => onSelect(item.id)}>
+        <Card mode="outlined" style={styles.card} onPress={() => onSelect(item.id)}>
           <Card.Content>
             <Text style={styles.cardTitle}>{item.name}</Text>
             <Text style={styles.cardMeta}>
@@ -32,6 +32,7 @@ export default function ProductList({ products, onSelect, t }: Props) {
 
 const styles = StyleSheet.create({
   card: {
+    backgroundColor: colors.surface,
     borderColor: colors.borderLight,
     borderRadius: 10,
     borderWidth: 1,

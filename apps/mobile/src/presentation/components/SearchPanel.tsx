@@ -26,7 +26,7 @@ export default function SearchPanel({ products, search, onSearchChange, onSelect
         data={products}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <Card style={styles.card} onPress={() => onSelect(item.id)}>
+          <Card mode="outlined" style={styles.card} onPress={() => onSelect(item.id)}>
             <Card.Content>
               <Text style={styles.cardTitle}>{item.name}</Text>
               <Text style={styles.cardMeta}>
@@ -64,6 +64,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchInput: {
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,

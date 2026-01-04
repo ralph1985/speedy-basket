@@ -84,21 +84,22 @@ export default function DevPanel({
           <>
             <View style={styles.section}>
               <Text style={styles.meta}>
-                {t('dev.outboxPending')} ({outboxPending.length}/{tableCounts.outbox_events ?? 0})
+                {t('dev.outboxPending')} ({outboxPending.length}/
+                {tableCounts.outbox_events ?? 0})
               </Text>
-            {outboxPending.map((eventItem) => (
-              <Text key={eventItem.id} style={styles.row}>
-                {t(`eventType.${eventItem.type}`)} · {eventItem.created_at}
-              </Text>
-            ))}
+              {outboxPending.map((eventItem) => (
+                <Text key={eventItem.id} style={styles.row}>
+                  {t(`eventType.${eventItem.type}`)} · {eventItem.created_at}
+                </Text>
+              ))}
             </View>
             <View style={styles.section}>
               <Text style={styles.meta}>{t('dev.outboxSent')}</Text>
-            {outboxSent.map((eventItem) => (
-              <Text key={eventItem.id} style={styles.row}>
-                {t(`eventType.${eventItem.type}`)} · {eventItem.sent_at}
-              </Text>
-            ))}
+              {outboxSent.map((eventItem) => (
+                <Text key={eventItem.id} style={styles.row}>
+                  {t(`eventType.${eventItem.type}`)} · {eventItem.sent_at}
+                </Text>
+              ))}
             </View>
           </>
         ) : null}
@@ -121,6 +122,8 @@ export default function DevPanel({
 
 const styles = StyleSheet.create({
   actions: {
+    borderTopColor: colors.borderLight,
+    borderTopWidth: 1,
     gap: 8,
     paddingTop: 12,
   },

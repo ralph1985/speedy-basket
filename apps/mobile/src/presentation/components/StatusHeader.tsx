@@ -61,14 +61,19 @@ export default function StatusHeader({
 
 const styles = StyleSheet.create({
   header: {
+    borderBottomColor: colors.borderLight,
+    borderBottomWidth: 1,
     gap: 4,
     marginBottom: 12,
+    paddingBottom: 8,
   },
   subtitle: {
     color: colors.textMuted,
   },
   title: {
+    color: colors.text,
     fontSize: 20,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });
