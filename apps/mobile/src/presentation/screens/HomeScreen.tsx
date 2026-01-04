@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
-import { Button, Card, TextInput } from 'react-native-paper';
+import { BottomNavigation, Button, Card, TextInput } from 'react-native-paper';
 import type { AppRepository } from '@domain/ports';
 import type { Pack, ProductDetail, ProductListItem, ZoneItem, OutboxEventItem } from '@domain/types';
 import {
@@ -78,13 +78,15 @@ type Props = {
   pack: Pack;
 };
 
+type TabKey = 'list' | 'search' | 'map' | 'dev';
+
 export default function HomeScreen({ repo, pack }: Props) {
   const [status, setStatus] = useState('Initializing...');
   const [storeCount, setStoreCount] = useState<number | null>(null);
-  const [screen, setScreen] = useState<'list' | 'search' | 'detail' | 'map' | 'dev'>('list');
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState<ProductDetail | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
   const [zones, setZones] = useState<ZoneItem[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
   const [devMode] = useState(true);
@@ -96,6 +98,7 @@ export default function HomeScreen({ repo, pack }: Props) {
   const [lastSyncStatus, setLastSyncStatus] = useState<'idle' | 'ok' | 'failed'>('idle');
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [lastSyncStats, setLastSyncStats] = useState<Record<string, string> | null>(null);
+  const [tabIndex, setTabIndex] = useState(0);
   const tapCount = useRef(0);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -170,7 +173,7 @@ export default function HomeScreen({ repo, pack }: Props) {
   const openDetail = async (productId: number) => {
     const item = await loadProductDetail(repo, productId);
     setDetail(item ?? null);
-    setScreen('detail');
+    setShowDetail(true);
   };
 
   const handleSearchChange = async (value: string) => {
@@ -179,16 +182,19 @@ export default function HomeScreen({ repo, pack }: Props) {
     setProducts(rows);
   };
 
-  const navItems = useMemo(
-    () =>
-      [
-        { key: 'list' as const, label: 'Lista' },
-        { key: 'search' as const, label: 'Busqueda' },
-        { key: 'map' as const, label: 'Mapa' },
-        devMode ? { key: 'dev' as const, label: 'Dev' } : null,
-      ].filter(Boolean) as Array<{ key: 'list' | 'search' | 'map' | 'dev'; label: string }>,
-    [devMode]
-  );
+  const routes = useMemo(() => {
+    const base = [
+      { key: 'list', title: 'Lista', focusedIcon: 'format-list-bulleted' },
+      { key: 'search', title: 'Busqueda', focusedIcon: 'magnify' },
+      { key: 'map', title: 'Mapa', focusedIcon: 'map-outline' },
+    ];
+    if (devMode) {
+      base.push({ key: 'dev', title: 'Dev', focusedIcon: 'wrench-outline' });
+    }
+    return base;
+  }, [devMode]);
+
+  const activeTab = (routes[tabIndex]?.key ?? 'list') as TabKey;
 
   const renderProduct = ({ item }: { item: ProductListItem }) => (
     <Card style={styles.card} onPress={() => openDetail(item.id)}>
@@ -283,7 +289,8 @@ export default function HomeScreen({ repo, pack }: Props) {
     await refreshZones();
     await refreshDevData();
     setStatus('DB reset + pack imported');
-    setScreen('list');
+    setShowDetail(false);
+    setTabIndex(0);
   };
 
   const handleSync = useCallback(async () => {
@@ -384,139 +391,137 @@ export default function HomeScreen({ repo, pack }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={handleSecretTap}>
-        <Text style={styles.title}>Speedy Basket</Text>
-        </Pressable>
-        <Text style={styles.subtitle}>{status}</Text>
-        <Text style={styles.subtitle}>Stores: {storeCount ?? '-'}</Text>
-        <Text style={styles.subtitle}>
-          Last sync: {formatTimestamp(lastSyncAt)} ({lastSyncStatus})
-        </Text>
-        {lastSyncError ? <Text style={styles.subtitle}>Error: {lastSyncError}</Text> : null}
-        <Text style={styles.subtitle}>API: {API_BASE_URL}</Text>
-      </View>
-
-      <View style={styles.nav}>
-        {navItems.map((item) => (
-          <Pressable
-            key={item.key}
-            onPress={() => setScreen(item.key)}
-            style={[styles.navButton, screen === item.key && styles.navButtonActive]}
-          >
-            <Text style={styles.navButtonText}>{item.label}</Text>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Pressable onPress={handleSecretTap}>
+            <Text style={styles.title}>Speedy Basket</Text>
           </Pressable>
-        ))}
-      </View>
+          <Text style={styles.subtitle}>{status}</Text>
+          <Text style={styles.subtitle}>Stores: {storeCount ?? '-'}</Text>
+          <Text style={styles.subtitle}>
+            Last sync: {formatTimestamp(lastSyncAt)} ({lastSyncStatus})
+          </Text>
+          {lastSyncError ? <Text style={styles.subtitle}>Error: {lastSyncError}</Text> : null}
+          <Text style={styles.subtitle}>API: {API_BASE_URL}</Text>
+        </View>
 
-      {screen === 'list' && (
-        <FlatList
-          data={products}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderProduct}
-          contentContainerStyle={styles.list}
-        />
-      )}
+        {showDetail && detail ? (
+          <View style={styles.detail}>
+            <Text style={styles.detailTitle}>{detail.name}</Text>
+            <Text style={styles.detailMeta}>Zona sugerida: {detail.zoneName ?? '-'}</Text>
+            <Text style={styles.detailMeta}>Categoria: {detail.category ?? '-'}</Text>
+            <View style={styles.detailActions}>
+              <Button mode="contained" onPress={() => handleEvent('FOUND')}>
+                <Text>Encontrado</Text>
+              </Button>
+              <Button mode="contained" onPress={() => handleEvent('NOT_FOUND')}>
+                <Text>No esta</Text>
+              </Button>
+            </View>
+            <Pressable onPress={() => setShowDetail(false)}>
+              <Text style={styles.backLink}>Volver a lista</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
-      {screen === 'search' && (
-        <View style={styles.searchPanel}>
-          <TextInput
-            placeholder="Buscar producto"
-            value={search}
-            onChangeText={handleSearchChange}
-            mode="outlined"
-            style={styles.searchInput}
-          />
+        {!showDetail && activeTab === 'list' && (
           <FlatList
             data={products}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderProduct}
             contentContainerStyle={styles.list}
           />
-        </View>
-      )}
+        )}
 
-      {screen === 'detail' && detail && (
-        <View style={styles.detail}>
-          <Text style={styles.detailTitle}>{detail.name}</Text>
-          <Text style={styles.detailMeta}>Zona sugerida: {detail.zoneName ?? '-'}</Text>
-          <Text style={styles.detailMeta}>Categoria: {detail.category ?? '-'}</Text>
-          <View style={styles.detailActions}>
-            <Button mode="contained" onPress={() => handleEvent('FOUND')}>
-              <Text>Encontrado</Text>
-            </Button>
-            <Button mode="contained" onPress={() => handleEvent('NOT_FOUND')}>
-              <Text>No esta</Text>
-            </Button>
+        {!showDetail && activeTab === 'search' && (
+          <View style={styles.searchPanel}>
+            <TextInput
+              placeholder="Buscar producto"
+              value={search}
+              onChangeText={handleSearchChange}
+              mode="outlined"
+              style={styles.searchInput}
+            />
+            <FlatList
+              data={products}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderProduct}
+              contentContainerStyle={styles.list}
+            />
           </View>
-          <Pressable onPress={() => setScreen('list')}>
-            <Text style={styles.backLink}>Volver a lista</Text>
-          </Pressable>
-        </View>
-      )}
+        )}
 
-      {screen === 'map' && (
-        <View style={styles.mapPanel}>
-          <Text style={styles.detailMeta}>Zona activa: {activeZoneId ?? '-'}</Text>
-          <View style={styles.mapCanvas}>{renderZoneMap()}</View>
-        </View>
-      )}
+        {!showDetail && activeTab === 'map' && (
+          <View style={styles.mapPanel}>
+            <Text style={styles.detailMeta}>Zona activa: {activeZoneId ?? '-'}</Text>
+            <View style={styles.mapCanvas}>{renderZoneMap()}</View>
+          </View>
+        )}
 
-      {screen === 'dev' && (
-        <ScrollView contentContainerStyle={styles.devPanel}>
-          <Text style={styles.detailTitle}>Developer mode</Text>
-          <View style={styles.devSection}>
-            <Text style={styles.detailMeta}>API base</Text>
-            <Text style={styles.devRow}>{API_BASE_URL}</Text>
-          </View>
-          <View style={styles.devSection}>
-            <Text style={styles.detailMeta}>DB counts</Text>
-            {Object.entries(tableCounts).map(([key, value]) => (
-              <Text key={key} style={styles.devRow}>
-                {key}: {value}
-              </Text>
-            ))}
-          </View>
-          {lastSyncStats ? (
+        {!showDetail && activeTab === 'dev' && (
+          <ScrollView contentContainerStyle={styles.devPanel}>
+            <Text style={styles.detailTitle}>Developer mode</Text>
             <View style={styles.devSection}>
-              <Text style={styles.detailMeta}>Last sync stats</Text>
-              {Object.entries(lastSyncStats).map(([key, value]) => (
+              <Text style={styles.detailMeta}>API base</Text>
+              <Text style={styles.devRow}>{API_BASE_URL}</Text>
+            </View>
+            <View style={styles.devSection}>
+              <Text style={styles.detailMeta}>DB counts</Text>
+              {Object.entries(tableCounts).map(([key, value]) => (
                 <Text key={key} style={styles.devRow}>
                   {key}: {value}
                 </Text>
               ))}
             </View>
-          ) : null}
-          <View style={styles.devSection}>
-            <Text style={styles.detailMeta}>
-              Outbox pendientes ({outboxEvents.length}/{tableCounts.outbox_events ?? 0})
-            </Text>
-            {outboxEvents.map((eventItem) => (
-              <Text key={eventItem.id} style={styles.devRow}>
-                {eventItem.type} · {eventItem.created_at}
+            {lastSyncStats ? (
+              <View style={styles.devSection}>
+                <Text style={styles.detailMeta}>Last sync stats</Text>
+                {Object.entries(lastSyncStats).map(([key, value]) => (
+                  <Text key={key} style={styles.devRow}>
+                    {key}: {value}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+            <View style={styles.devSection}>
+              <Text style={styles.detailMeta}>
+                Outbox pendientes ({outboxEvents.length}/{tableCounts.outbox_events ?? 0})
               </Text>
-            ))}
-          </View>
-          <View style={styles.devSection}>
-            <Text style={styles.detailMeta}>Outbox enviados (ultimos 20)</Text>
-            {sentOutboxEvents.map((eventItem) => (
-              <Text key={eventItem.id} style={styles.devRow}>
-                {eventItem.type} · {eventItem.sent_at}
-              </Text>
-            ))}
-          </View>
-          <Button mode="contained" onPress={refreshDevData}>
-            <Text>Refrescar</Text>
-          </Button>
-          <Button mode="contained" onPress={handleReset}>
-            <Text>Reset + Import pack</Text>
-          </Button>
-          <Button mode="contained" onPress={handleSync} disabled={isSyncing}>
-            {isSyncing ? 'Syncing...' : 'Sync now'}
-          </Button>
-        </ScrollView>
-      )}
+              {outboxEvents.map((eventItem) => (
+                <Text key={eventItem.id} style={styles.devRow}>
+                  {eventItem.type} · {eventItem.created_at}
+                </Text>
+              ))}
+            </View>
+            <View style={styles.devSection}>
+              <Text style={styles.detailMeta}>Outbox enviados (ultimos 20)</Text>
+              {sentOutboxEvents.map((eventItem) => (
+                <Text key={eventItem.id} style={styles.devRow}>
+                  {eventItem.type} · {eventItem.sent_at}
+                </Text>
+              ))}
+            </View>
+            <Button mode="contained" onPress={refreshDevData}>
+              <Text>Refrescar</Text>
+            </Button>
+            <Button mode="contained" onPress={handleReset}>
+              <Text>Reset + Import pack</Text>
+            </Button>
+            <Button mode="contained" onPress={handleSync} disabled={isSyncing}>
+              <Text>{isSyncing ? 'Syncing...' : 'Sync now'}</Text>
+            </Button>
+          </ScrollView>
+        )}
+      </View>
 
+      <BottomNavigation.Bar
+        navigationState={{ index: tabIndex, routes }}
+        onTabPress={({ route }) => {
+          const nextIndex = routes.findIndex((item) => item.key === route.key);
+          if (nextIndex >= 0) setTabIndex(nextIndex);
+          setShowDetail(false);
+        }}
+      />
       <StatusBar style="auto" />
     </SafeAreaView>
   );
@@ -555,6 +560,9 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: colors.background,
+    flex: 1,
+  },
+  content: {
     flex: 1,
     padding: 24,
   },
@@ -597,24 +605,6 @@ const styles = StyleSheet.create({
   mapPanel: {
     flex: 1,
     gap: 12,
-  },
-  nav: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  navButton: {
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  navButtonActive: {
-    borderColor: colors.primary,
-  },
-  navButtonText: {
-    color: colors.text,
   },
   searchInput: {
     borderColor: colors.border,
