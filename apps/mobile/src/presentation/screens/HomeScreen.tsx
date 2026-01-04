@@ -7,10 +7,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
+import { Button, Card, TextInput } from 'react-native-paper';
 import type { AppRepository } from '@domain/ports';
 import type { Pack, ProductDetail, ProductListItem, ZoneItem, OutboxEventItem } from '@domain/types';
 import {
@@ -191,10 +191,12 @@ export default function HomeScreen({ repo, pack }: Props) {
   );
 
   const renderProduct = ({ item }: { item: ProductListItem }) => (
-    <Pressable onPress={() => openDetail(item.id)} style={styles.card}>
-      <Text style={styles.cardTitle}>{item.name}</Text>
-      <Text style={styles.cardMeta}>Zona: {item.zoneName ?? '-'}</Text>
-    </Pressable>
+    <Card style={styles.card} onPress={() => openDetail(item.id)}>
+      <Card.Content>
+        <Text style={styles.cardTitle}>{item.name}</Text>
+        <Text style={styles.cardMeta}>Zona: {item.zoneName ?? '-'}</Text>
+      </Card.Content>
+    </Card>
   );
 
   const handleEvent = async (type: 'FOUND' | 'NOT_FOUND') => {
@@ -422,6 +424,7 @@ export default function HomeScreen({ repo, pack }: Props) {
             placeholder="Buscar producto"
             value={search}
             onChangeText={handleSearchChange}
+            mode="outlined"
             style={styles.searchInput}
           />
           <FlatList
@@ -439,12 +442,12 @@ export default function HomeScreen({ repo, pack }: Props) {
           <Text style={styles.detailMeta}>Zona sugerida: {detail.zoneName ?? '-'}</Text>
           <Text style={styles.detailMeta}>Categoria: {detail.category ?? '-'}</Text>
           <View style={styles.detailActions}>
-            <Pressable onPress={() => handleEvent('FOUND')} style={styles.actionButton}>
-              <Text style={styles.actionText}>Encontrado</Text>
-            </Pressable>
-            <Pressable onPress={() => handleEvent('NOT_FOUND')} style={styles.actionButton}>
-              <Text style={styles.actionText}>No esta</Text>
-            </Pressable>
+            <Button mode="contained" onPress={() => handleEvent('FOUND')}>
+              <Text>Encontrado</Text>
+            </Button>
+            <Button mode="contained" onPress={() => handleEvent('NOT_FOUND')}>
+              <Text>No esta</Text>
+            </Button>
           </View>
           <Pressable onPress={() => setScreen('list')}>
             <Text style={styles.backLink}>Volver a lista</Text>
@@ -502,19 +505,15 @@ export default function HomeScreen({ repo, pack }: Props) {
               </Text>
             ))}
           </View>
-          <Pressable onPress={refreshDevData} style={styles.actionButton}>
-            <Text style={styles.actionText}>Refrescar</Text>
-          </Pressable>
-          <Pressable onPress={handleReset} style={styles.actionButton}>
-            <Text style={styles.actionText}>Reset + Import pack</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleSync}
-            style={[styles.actionButton, isSyncing && styles.actionButtonDisabled]}
-            disabled={isSyncing}
-          >
-            <Text style={styles.actionText}>{isSyncing ? 'Syncing...' : 'Sync now'}</Text>
-          </Pressable>
+          <Button mode="contained" onPress={refreshDevData}>
+            <Text>Refrescar</Text>
+          </Button>
+          <Button mode="contained" onPress={handleReset}>
+            <Text>Reset + Import pack</Text>
+          </Button>
+          <Button mode="contained" onPress={handleSync} disabled={isSyncing}>
+            {isSyncing ? 'Syncing...' : 'Sync now'}
+          </Button>
         </ScrollView>
       )}
 
@@ -536,18 +535,6 @@ const colors = {
 };
 
 const styles = StyleSheet.create({
-  actionButton: {
-    backgroundColor: colors.text,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  actionButtonDisabled: {
-    opacity: 0.6,
-  },
-  actionText: {
-    color: colors.onPrimary,
-  },
   backLink: {
     color: colors.primary,
     marginTop: 8,
