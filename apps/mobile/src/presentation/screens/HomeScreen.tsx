@@ -333,6 +333,7 @@ export default function HomeScreen({ repo, pack }: Props) {
           lastSyncStatus={lastSyncStatus}
           lastSyncError={lastSyncError}
           apiBaseUrl={API_BASE_URL}
+          showDevInfo={activeTab === 'dev'}
           onSecretTap={handleSecretTap}
         />
 

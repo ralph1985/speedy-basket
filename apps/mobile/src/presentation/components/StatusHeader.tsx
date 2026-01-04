@@ -13,6 +13,7 @@ type Props = {
   lastSyncStatus: 'idle' | 'ok' | 'failed';
   lastSyncError: string | null;
   apiBaseUrl: string;
+  showDevInfo: boolean;
   onSecretTap: () => void;
 };
 
@@ -23,6 +24,7 @@ export default function StatusHeader({
   lastSyncStatus,
   lastSyncError,
   apiBaseUrl,
+  showDevInfo,
   onSecretTap,
 }: Props) {
   return (
@@ -30,13 +32,17 @@ export default function StatusHeader({
       <Pressable onPress={onSecretTap}>
         <Text style={styles.title}>Speedy Basket</Text>
       </Pressable>
-      <Text style={styles.subtitle}>{status}</Text>
-      <Text style={styles.subtitle}>Stores: {storeCount ?? '-'}</Text>
-      <Text style={styles.subtitle}>
-        Last sync: {formatTimestamp(lastSyncAt)} ({lastSyncStatus})
-      </Text>
-      {lastSyncError ? <Text style={styles.subtitle}>Error: {lastSyncError}</Text> : null}
-      <Text style={styles.subtitle}>API: {apiBaseUrl}</Text>
+      {showDevInfo ? (
+        <>
+          <Text style={styles.subtitle}>{status}</Text>
+          <Text style={styles.subtitle}>Stores: {storeCount ?? '-'}</Text>
+          <Text style={styles.subtitle}>
+            Last sync: {formatTimestamp(lastSyncAt)} ({lastSyncStatus})
+          </Text>
+          {lastSyncError ? <Text style={styles.subtitle}>Error: {lastSyncError}</Text> : null}
+          <Text style={styles.subtitle}>API: {apiBaseUrl}</Text>
+        </>
+      ) : null}
     </View>
   );
 }
