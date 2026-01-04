@@ -16,6 +16,7 @@ import type { Pack, ProductDetail, ProductListItem, ZoneItem, OutboxEventItem } 
 import {
   ensurePack,
   initApp,
+  loadPendingOutboxEvents,
   loadOutboxEvents,
   loadProductDetail,
   loadProducts,
@@ -40,6 +41,8 @@ const getErrorMessage = (error: unknown) => {
   if (typeof error === 'string') return error;
   return 'Unknown error';
 };
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function fetchPackDelta(storeId: number, since?: string | null) {
   const query = since ? `&since=${encodeURIComponent(since)}` : '';
@@ -77,6 +80,7 @@ export default function HomeScreen({ repo, pack }: Props) {
   const [devMode] = useState(true);
   const [tableCounts, setTableCounts] = useState<Record<string, number>>({});
   const [outboxEvents, setOutboxEvents] = useState<OutboxEventItem[]>([]);
+  const [sentOutboxEvents, setSentOutboxEvents] = useState<OutboxEventItem[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [lastSyncStatus, setLastSyncStatus] = useState<'idle' | 'ok' | 'failed'>('idle');
@@ -108,9 +112,14 @@ export default function HomeScreen({ repo, pack }: Props) {
 
   const refreshDevData = useCallback(async () => {
     const counts = await loadTableCounts(repo);
-    const events = await loadOutboxEvents(repo, 20);
+    const [pending, allEvents] = await Promise.all([
+      loadPendingOutboxEvents(repo, 20),
+      loadOutboxEvents(repo, 50),
+    ]);
+    const sent = allEvents.filter((eventItem) => eventItem.sent_at);
     setTableCounts(counts);
-    setOutboxEvents(events);
+    setOutboxEvents(pending);
+    setSentOutboxEvents(sent.slice(0, 20));
   }, [repo]);
 
   const refreshSyncMeta = useCallback(async () => {
@@ -271,26 +280,40 @@ export default function HomeScreen({ repo, pack }: Props) {
       setStatus('Syncing...');
       await repo.setMetaValue('sync_last_attempt', new Date().toISOString());
       const storeId = defaultStoreId(pack);
-      const since = await repo.getPackVersion();
-      const delta = (await fetchPackDelta(storeId, since)) as PackDelta;
-      await repo.applyPackDelta(delta);
+      let accepted = 0;
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          const since = await repo.getPackVersion();
+          const delta = (await fetchPackDelta(storeId, since)) as PackDelta;
+          await repo.applyPackDelta(delta);
 
-      const pending = await repo.listPendingOutboxEvents(100);
-      const events = pending.map((eventItem) => {
-        const payload = JSON.parse(eventItem.payload_json) as Record<string, unknown>;
-        if (!payload.storeId) {
-          payload.storeId = storeId;
+          const pending = await repo.listPendingOutboxEvents(100);
+          const events = pending.map((eventItem) => {
+            const payload = JSON.parse(eventItem.payload_json) as Record<string, unknown>;
+            if (!payload.storeId) {
+              payload.storeId = storeId;
+            }
+            return {
+              id: eventItem.id,
+              type: eventItem.type,
+              created_at: eventItem.created_at,
+              payload,
+            };
+          }) as SyncEvent[];
+          accepted = await postEvents(events);
+          if (accepted > 0) {
+            await repo.markOutboxEventsSent(pending.slice(0, accepted).map((item) => item.id));
+          }
+          break;
+        } catch (error) {
+          if (attempt >= maxAttempts) {
+            throw error;
+          }
+          const backoff = 400 * attempt;
+          setStatus(`Sync retry ${attempt}/${maxAttempts}...`);
+          await sleep(backoff);
         }
-        return {
-        id: eventItem.id,
-        type: eventItem.type,
-        created_at: eventItem.created_at,
-        payload,
-        };
-      }) as SyncEvent[];
-      const accepted = await postEvents(events);
-      if (accepted > 0) {
-        await repo.markOutboxEventsSent(pending.slice(0, accepted).map((item) => item.id));
       }
 
       await refreshListData();
@@ -417,10 +440,20 @@ export default function HomeScreen({ repo, pack }: Props) {
             ))}
           </View>
           <View style={styles.devSection}>
-            <Text style={styles.detailMeta}>Outbox (ultimos 20)</Text>
+            <Text style={styles.detailMeta}>
+              Outbox pendientes ({outboxEvents.length}/{tableCounts.outbox_events ?? 0})
+            </Text>
             {outboxEvents.map((eventItem) => (
               <Text key={eventItem.id} style={styles.devRow}>
                 {eventItem.type} · {eventItem.created_at}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.devSection}>
+            <Text style={styles.detailMeta}>Outbox enviados (ultimos 20)</Text>
+            {sentOutboxEvents.map((eventItem) => (
+              <Text key={eventItem.id} style={styles.devRow}>
+                {eventItem.type} · {eventItem.sent_at}
               </Text>
             ))}
           </View>

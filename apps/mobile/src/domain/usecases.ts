@@ -34,6 +34,10 @@ export async function loadOutboxEvents(repo: AppRepository, limit = 20) {
   return repo.listOutboxEvents(limit);
 }
 
+export async function loadPendingOutboxEvents(repo: AppRepository, limit = 20) {
+  return repo.listPendingOutboxEvents(limit);
+}
+
 export async function loadTableCounts(repo: AppRepository) {
   return repo.getTableCounts();
 }
