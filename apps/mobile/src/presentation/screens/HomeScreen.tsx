@@ -44,6 +44,16 @@ const getErrorMessage = (error: unknown) => {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const hasDeltaChanges = (delta: PackDelta) =>
+  delta.stores.upserts.length > 0 ||
+  delta.stores.deletes.length > 0 ||
+  delta.zones.upserts.length > 0 ||
+  delta.zones.deletes.length > 0 ||
+  delta.products.upserts.length > 0 ||
+  delta.products.deletes.length > 0 ||
+  delta.product_locations.upserts.length > 0 ||
+  delta.product_locations.deletes.length > 0;
+
 async function fetchPackDelta(storeId: number, since?: string | null) {
   const query = since ? `&since=${encodeURIComponent(since)}` : '';
   const res = await fetch(`${API_BASE_URL}/pack?storeId=${storeId}${query}`);
@@ -281,11 +291,13 @@ export default function HomeScreen({ repo, pack }: Props) {
       await repo.setMetaValue('sync_last_attempt', new Date().toISOString());
       const storeId = defaultStoreId(pack);
       let accepted = 0;
+      let hasChanges = false;
       const maxAttempts = 3;
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
           const since = await repo.getPackVersion();
           const delta = (await fetchPackDelta(storeId, since)) as PackDelta;
+          hasChanges = hasDeltaChanges(delta);
           await repo.applyPackDelta(delta);
 
           const pending = await repo.listPendingOutboxEvents(100);
@@ -304,6 +316,9 @@ export default function HomeScreen({ repo, pack }: Props) {
           accepted = await postEvents(events);
           if (accepted > 0) {
             await repo.markOutboxEventsSent(pending.slice(0, accepted).map((item) => item.id));
+          }
+          if (pending.length > 0) {
+            hasChanges = true;
           }
           break;
         } catch (error) {
@@ -326,7 +341,11 @@ export default function HomeScreen({ repo, pack }: Props) {
       setLastSyncAt(now);
       setLastSyncStatus('ok');
       setLastSyncError(null);
-      setStatus(`Sync ok (${accepted} events)`);
+      if (!hasChanges) {
+        setStatus('Sync ok (no changes)');
+      } else {
+        setStatus(`Sync ok (${accepted} events)`);
+      }
     } catch (error) {
       const message = getErrorMessage(error);
       console.error('Sync failed', error);
