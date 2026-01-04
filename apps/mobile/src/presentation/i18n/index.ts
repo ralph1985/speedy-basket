@@ -4,7 +4,6 @@ export type TFunction = (key: string, params?: Record<string, string | number>) 
 const translations: Record<Language, Record<string, string>> = {
   es: {
     'nav.list': 'Lista',
-    'nav.search': 'Busqueda',
     'nav.map': 'Mapa',
     'nav.dev': 'Dev',
     'nav.settings': 'Configuracion',
@@ -56,7 +55,6 @@ const translations: Record<Language, Record<string, string>> = {
   },
   en: {
     'nav.list': 'List',
-    'nav.search': 'Search',
     'nav.map': 'Map',
     'nav.dev': 'Dev',
     'nav.settings': 'Settings',

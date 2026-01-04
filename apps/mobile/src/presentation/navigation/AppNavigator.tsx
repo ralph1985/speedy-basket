@@ -6,7 +6,6 @@ import DevScreen from '@presentation/screens/DevScreen';
 import ListScreen from '@presentation/screens/ListScreen';
 import MapScreen from '@presentation/screens/MapScreen';
 import ProductDetailScreen from '@presentation/screens/ProductDetailScreen';
-import SearchScreen from '@presentation/screens/SearchScreen';
 import SettingsScreen from '@presentation/screens/SettingsScreen';
 import colors from '@presentation/styles/colors';
 import { useHome } from '@presentation/context/HomeContext';
@@ -35,14 +34,6 @@ const Tabs = () => {
           tabBarIcon: ({ color }) => (
             <Icon source="format-list-bulleted" color={color} size={24} />
           ),
-        }}
-      />
-      <Tab.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{
-          title: t('nav.search'),
-          tabBarIcon: ({ color }) => <Icon source="magnify" color={color} size={24} />,
         }}
       />
       <Tab.Screen

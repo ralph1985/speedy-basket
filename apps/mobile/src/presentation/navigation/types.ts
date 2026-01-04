@@ -5,7 +5,6 @@ export type RootStackParamList = {
 
 export type HomeTabParamList = {
   List: undefined;
-  Search: undefined;
   Map: undefined;
   Settings: undefined;
   Dev: undefined;

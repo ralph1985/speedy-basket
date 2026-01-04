@@ -1,18 +1,20 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import HomeLayout from '@presentation/components/HomeLayout';
-import ProductList from '@presentation/components/ProductList';
+import SearchPanel from '@presentation/components/SearchPanel';
 import { useHome } from '@presentation/context/HomeContext';
 import type { RootStackParamList } from '@presentation/navigation/types';
 
 export default function ListScreen() {
-  const { products, t } = useHome();
+  const { products, search, setSearch, t } = useHome();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
     <HomeLayout>
-      <ProductList
+      <SearchPanel
         products={products}
+        search={search}
+        onSearchChange={setSearch}
         onSelect={(productId) => navigation.navigate('ProductDetail', { productId })}
         t={t}
       />
