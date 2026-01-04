@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 import type { Pack } from '@domain/types';
 import { SqliteRepository } from '@data/sqlite/repository';
@@ -11,8 +12,10 @@ type Props = {
 export default function App({ pack }: Props) {
   const repo = useMemo(() => new SqliteRepository(), []);
   return (
-    <PaperProvider>
-      <HomeScreen repo={repo} pack={pack} />
-    </PaperProvider>
+    <SafeAreaProvider>
+      <PaperProvider>
+        <HomeScreen repo={repo} pack={pack} />
+      </PaperProvider>
+    </SafeAreaProvider>
   );
 }

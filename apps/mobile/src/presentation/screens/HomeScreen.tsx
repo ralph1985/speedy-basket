@@ -1,7 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { BottomNavigation, TouchableRipple } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { AppRepository } from '@domain/ports';
 import type { Pack, ProductDetail, ProductListItem, ZoneItem } from '@domain/types';
 import {
