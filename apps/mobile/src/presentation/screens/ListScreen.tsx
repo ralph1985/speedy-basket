@@ -17,6 +17,7 @@ export default function ListScreen() {
     createShoppingList,
     addShoppingListItem,
     toggleShoppingListItem,
+    addShoppingListMember,
     t,
   } = useHome();
 
@@ -30,6 +31,7 @@ export default function ListScreen() {
         onCreateList={createShoppingList}
         onToggleItem={toggleShoppingListItem}
         onAddItem={addShoppingListItem}
+        onShareMember={addShoppingListMember}
         t={t}
       />
       <SearchPanel

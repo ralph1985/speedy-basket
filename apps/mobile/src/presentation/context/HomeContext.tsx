@@ -173,6 +173,24 @@ async function toggleListItemApi(
   return res.json();
 }
 
+async function addListMemberApi(
+  listId: number,
+  payload: { userId: string; role?: 'owner' | 'editor' | 'viewer' },
+  authToken: string
+) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  const res = await fetch(`${API_BASE_URL}/lists/${listId}/members`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to add list member');
+  return res.json();
+}
+
 type HomeContextValue = {
   t: TFunction;
   language: Language;
@@ -200,6 +218,7 @@ type HomeContextValue = {
   createShoppingList: (name: string) => Promise<void>;
   addShoppingListItem: (payload: { productId?: number; label?: string }) => Promise<void>;
   toggleShoppingListItem: (itemId: number, checked: boolean) => Promise<void>;
+  addShoppingListMember: (payload: { userId: string; role?: 'owner' | 'editor' | 'viewer' }) => Promise<void>;
   zones: ZoneItem[];
   selectedZoneId: number | null;
   setSelectedZoneId: (zoneId: number) => void;
@@ -456,6 +475,33 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       }
     },
     [activeListId, authToken, listItems]
+  );
+
+  const addShoppingListMember = useCallback(
+    async (payload: { userId: string; role?: 'owner' | 'editor' | 'viewer' }) => {
+      const listId = activeListId;
+      if (!listId) {
+        setStatusKey('status.listSelectRequired');
+        setStatusParams({});
+        return;
+      }
+      const token = authToken.trim();
+      if (!token) {
+        setStatusKey('status.authRequired');
+        setStatusParams({});
+        return;
+      }
+      try {
+        await addListMemberApi(listId, payload, token);
+        setStatusKey('status.listMemberAdded');
+        setStatusParams({});
+      } catch (error) {
+        const message = getErrorMessage(error);
+        setStatusKey('status.listMemberFailed');
+        setStatusParams({ message });
+      }
+    },
+    [activeListId, authToken]
   );
 
   useEffect(() => {
@@ -894,6 +940,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       createShoppingList,
       addShoppingListItem,
       toggleShoppingListItem,
+      addShoppingListMember,
       zones,
       selectedZoneId,
       setSelectedZoneId,
@@ -942,6 +989,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       createShoppingList,
       addShoppingListItem,
       toggleShoppingListItem,
+      addShoppingListMember,
       refreshCategories,
       refreshDevData,
       search,
