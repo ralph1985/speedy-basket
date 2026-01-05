@@ -3,7 +3,11 @@
   "stores": [
     {
       "id": 1,
-      "name": "Demo Store"
+      "name": "Mercadona Meco"
+    },
+    {
+      "id": 2,
+      "name": "Ahorramas Meco"
     }
   ],
   "zones": [
@@ -17,6 +21,42 @@
       "id": 2,
       "store_id": 1,
       "name": "Lacteos",
+      "polygon_or_meta": "{\"shape\":\"rect\"}"
+    },
+    {
+      "id": 3,
+      "store_id": 1,
+      "name": "Fruta",
+      "polygon_or_meta": "{\"shape\":\"rect\"}"
+    },
+    {
+      "id": 4,
+      "store_id": 1,
+      "name": "Panaderia",
+      "polygon_or_meta": "{\"shape\":\"rect\"}"
+    },
+    {
+      "id": 5,
+      "store_id": 2,
+      "name": "Entrada",
+      "polygon_or_meta": "{\"shape\":\"rect\"}"
+    },
+    {
+      "id": 6,
+      "store_id": 2,
+      "name": "Frescos",
+      "polygon_or_meta": "{\"shape\":\"rect\"}"
+    },
+    {
+      "id": 7,
+      "store_id": 2,
+      "name": "Bebidas",
+      "polygon_or_meta": "{\"shape\":\"rect\"}"
+    },
+    {
+      "id": 8,
+      "store_id": 2,
+      "name": "Snacks",
       "polygon_or_meta": "{\"shape\":\"rect\"}"
     }
   ],
@@ -34,6 +74,48 @@
       "brand": "Generica",
       "ean": "000000000002",
       "category": "Panaderia"
+    },
+    {
+      "id": 3,
+      "name": "Manzana",
+      "brand": "Generica",
+      "ean": "000000000003",
+      "category": "Fruta"
+    },
+    {
+      "id": 4,
+      "name": "Yogur",
+      "brand": "Generica",
+      "ean": "000000000004",
+      "category": "Lacteos"
+    },
+    {
+      "id": 5,
+      "name": "Agua mineral",
+      "brand": "Generica",
+      "ean": "000000000005",
+      "category": "Bebidas"
+    },
+    {
+      "id": 6,
+      "name": "Patatas fritas",
+      "brand": "Generica",
+      "ean": "000000000006",
+      "category": "Snacks"
+    },
+    {
+      "id": 7,
+      "name": "Pollo",
+      "brand": "Generica",
+      "ean": "000000000007",
+      "category": "Frescos"
+    },
+    {
+      "id": 8,
+      "name": "Tomate",
+      "brand": "Generica",
+      "ean": "000000000008",
+      "category": "Fruta"
     }
   ],
   "product_locations": [
@@ -47,8 +129,50 @@
     {
       "product_id": 2,
       "store_id": 1,
-      "zone_id": 1,
-      "confidence": 0.4,
+      "zone_id": 4,
+      "confidence": 0.6,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "product_id": 3,
+      "store_id": 1,
+      "zone_id": 3,
+      "confidence": 0.7,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "product_id": 4,
+      "store_id": 1,
+      "zone_id": 2,
+      "confidence": 0.65,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "product_id": 5,
+      "store_id": 2,
+      "zone_id": 7,
+      "confidence": 0.7,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "product_id": 6,
+      "store_id": 2,
+      "zone_id": 8,
+      "confidence": 0.6,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "product_id": 7,
+      "store_id": 2,
+      "zone_id": 6,
+      "confidence": 0.75,
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "product_id": 8,
+      "store_id": 2,
+      "zone_id": 6,
+      "confidence": 0.5,
       "updated_at": "2026-01-01T00:00:00Z"
     }
   ]
