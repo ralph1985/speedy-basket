@@ -24,11 +24,13 @@ Reglas:
 Incluye:
 
 - products (genericos)
+- product_translations (nombre por locale)
 - product_variants (marca + ean)
 
 ## API (write)
 
 - POST /products (auth requerida): crea producto generico (name, category?).
+  - tambien crea la traduccion en el locale enviado.
 
 ## API (read)
 

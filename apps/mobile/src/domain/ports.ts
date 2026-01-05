@@ -14,10 +14,19 @@ export interface AppRepository {
   init(): Promise<void>;
   getStoreCount(): Promise<number>;
   listStores(): Promise<StoreItem[]>;
-  listProducts(search: string, storeId: number): Promise<ProductListItem[]>;
-  insertProduct(product: { id: number; name: string; category: string | null }): Promise<void>;
+  listProducts(search: string, storeId: number, locale: string): Promise<ProductListItem[]>;
+  insertProduct(product: {
+    id: number;
+    name: string;
+    category: string | null;
+    locale: string;
+  }): Promise<void>;
   listZones(storeId: number): Promise<ZoneItem[]>;
-  getProductDetail(productId: number, storeId: number): Promise<ProductDetail | null>;
+  getProductDetail(
+    productId: number,
+    storeId: number,
+    locale: string
+  ): Promise<ProductDetail | null>;
   createOutboxEvent(type: EventType, payload: Record<string, unknown>): Promise<string>;
   listOutboxEvents(limit: number): Promise<OutboxEventItem[]>;
   listPendingOutboxEvents(limit: number): Promise<OutboxEventItem[]>;

@@ -23,21 +23,34 @@ export function registerProductsRoutes(server: FastifyInstance) {
       }
       const { name, category, locale } = createProductSchema.parse(request.body);
       return withAuthClient(userId, async (client) => {
-        if (category && category.trim().length > 0) {
-          await client.query(
-            'INSERT INTO categories (name, created_by, locale) VALUES ($1, $2, $3) ON CONFLICT (locale, name) DO NOTHING',
-            [category.trim(), userId, locale ?? 'es']
+        const safeLocale = locale ?? 'es';
+        await client.query('BEGIN');
+        try {
+          if (category && category.trim().length > 0) {
+            await client.query(
+              'INSERT INTO categories (name, created_by, locale) VALUES ($1, $2, $3) ON CONFLICT (locale, name) DO NOTHING',
+              [category.trim(), userId, safeLocale]
+            );
+          }
+          const result = await client.query<{
+            id: number;
+            name: string;
+            category: string | null;
+          }>(
+            'INSERT INTO products (name, category, created_by) VALUES ($1, $2, $3) RETURNING id, name, category',
+            [name, category ?? null, userId]
           );
+          const created = result.rows[0];
+          await client.query(
+            'INSERT INTO product_translations (product_id, locale, name) VALUES ($1, $2, $3) ON CONFLICT (product_id, locale) DO NOTHING',
+            [created.id, safeLocale, name]
+          );
+          await client.query('COMMIT');
+          return created;
+        } catch (error) {
+          await client.query('ROLLBACK');
+          throw error;
         }
-        const result = await client.query<{
-          id: number;
-          name: string;
-          category: string | null;
-        }>(
-          'INSERT INTO products (name, category, created_by) VALUES ($1, $2, $3) RETURNING id, name, category',
-          [name, category ?? null, userId]
-        );
-        return result.rows[0];
       });
     }
   );

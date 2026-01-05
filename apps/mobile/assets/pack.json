@@ -1,5 +1,5 @@
 {
-  "version": "2026-01-05T19:27:09.185Z",
+  "version": "2026-01-05T20:17:18.932Z",
   "stores": [
     {
       "id": 1,
@@ -100,6 +100,88 @@
       "id": 8,
       "name": "Tomate",
       "category": "Fruta"
+    }
+  ],
+  "product_translations": [
+    {
+      "product_id": 1,
+      "locale": "en",
+      "name": "Milk"
+    },
+    {
+      "product_id": 1,
+      "locale": "es",
+      "name": "Leche"
+    },
+    {
+      "product_id": 2,
+      "locale": "en",
+      "name": "Bread"
+    },
+    {
+      "product_id": 2,
+      "locale": "es",
+      "name": "Pan"
+    },
+    {
+      "product_id": 3,
+      "locale": "en",
+      "name": "Apple"
+    },
+    {
+      "product_id": 3,
+      "locale": "es",
+      "name": "Manzana"
+    },
+    {
+      "product_id": 4,
+      "locale": "en",
+      "name": "Yogurt"
+    },
+    {
+      "product_id": 4,
+      "locale": "es",
+      "name": "Yogur"
+    },
+    {
+      "product_id": 5,
+      "locale": "en",
+      "name": "Mineral water"
+    },
+    {
+      "product_id": 5,
+      "locale": "es",
+      "name": "Agua mineral"
+    },
+    {
+      "product_id": 6,
+      "locale": "en",
+      "name": "Chips"
+    },
+    {
+      "product_id": 6,
+      "locale": "es",
+      "name": "Patatas fritas"
+    },
+    {
+      "product_id": 7,
+      "locale": "en",
+      "name": "Chicken"
+    },
+    {
+      "product_id": 7,
+      "locale": "es",
+      "name": "Pollo"
+    },
+    {
+      "product_id": 8,
+      "locale": "en",
+      "name": "Tomato"
+    },
+    {
+      "product_id": 8,
+      "locale": "es",
+      "name": "Tomate"
     }
   ],
   "product_variants": [

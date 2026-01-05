@@ -18,6 +18,9 @@ async function run() {
   const productsResult = await pool.query(
     'SELECT id, name, category FROM products ORDER BY id ASC'
   );
+  const translationsResult = await pool.query(
+    'SELECT product_id, locale, name FROM product_translations ORDER BY product_id ASC, locale ASC'
+  );
   const variantsResult = await pool.query(
     'SELECT id, product_id, brand, ean FROM product_variants ORDER BY id ASC'
   );
@@ -34,6 +37,10 @@ async function run() {
       store_id: Number(row.store_id),
     })),
     products: productsResult.rows.map((row) => ({ ...row, id: Number(row.id) })),
+    product_translations: translationsResult.rows.map((row) => ({
+      ...row,
+      product_id: Number(row.product_id),
+    })),
     product_variants: variantsResult.rows.map((row) => ({
       ...row,
       id: Number(row.id),

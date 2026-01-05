@@ -5,6 +5,7 @@
 - stores(id, name)
 - zones(id, store_id, name, polygon_or_meta)
 - products(id, name, category)
+- product_translations(product_id, locale, name)
 - product_variants(id, product_id, brand?, ean?)
 - product_locations(product_id, store_id, zone_id, confidence, updated_at)
 - outbox_events(id, type, payload_json, created_at, sent_at?)
@@ -22,6 +23,7 @@
 - user_roles (user_id, role_id, store_id)
 - zones
 - products (genericos, created_by, created_at)
+- product_translations (product_id, locale, name)
 - categories (name, locale, created_by, created_at)
 - product_variants (marca + ean)
 - events (append-only)

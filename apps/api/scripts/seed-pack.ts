@@ -81,6 +81,13 @@ async function run() {
   });
 
   await upsertRows(pool, {
+    table: 'product_translations',
+    rows: pack.product_translations,
+    columns: ['product_id', 'locale', 'name'],
+    conflictKeys: ['product_id', 'locale'],
+  });
+
+  await upsertRows(pool, {
     table: 'product_variants',
     rows: pack.product_variants,
     columns: ['id', 'product_id', 'brand', 'ean'],

@@ -210,10 +210,10 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const refreshListData = useCallback(
     async (value = search, storeId = activeStoreId) => {
       if (!storeId) return;
-      const rows = await loadProducts(repo, value, storeId);
+      const rows = await loadProducts(repo, value, storeId, language);
       setProducts(rows);
     },
-    [activeStoreId, repo, search]
+    [activeStoreId, language, repo, search]
   );
 
   const refreshZones = useCallback(
@@ -586,9 +586,9 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const loadDetail = useCallback(
     async (productId: number) => {
       const storeId = activeStoreId ?? fallbackStoreId(pack);
-      return loadProductDetail(repo, productId, storeId);
+      return loadProductDetail(repo, productId, storeId, language);
     },
-    [activeStoreId, pack, repo]
+    [activeStoreId, language, pack, repo]
   );
 
   const recordEvent = useCallback(
@@ -620,6 +620,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
           id: Number(created.id),
           name: created.name,
           category: created.category ?? null,
+          locale: language,
         });
         await refreshCategories();
         await refreshListData(search, activeStoreId);

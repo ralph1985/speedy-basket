@@ -14,13 +14,18 @@ export async function loadStores(repo: AppRepository) {
   return repo.listStores();
 }
 
-export async function loadProducts(repo: AppRepository, search = '', storeId: number) {
-  return repo.listProducts(search, storeId);
+export async function loadProducts(
+  repo: AppRepository,
+  search = '',
+  storeId: number,
+  locale: string
+) {
+  return repo.listProducts(search, storeId, locale);
 }
 
 export async function addProduct(
   repo: AppRepository,
-  product: { id: number; name: string; category: string | null }
+  product: { id: number; name: string; category: string | null; locale: string }
 ) {
   return repo.insertProduct(product);
 }
@@ -29,8 +34,13 @@ export async function loadZones(repo: AppRepository, storeId: number) {
   return repo.listZones(storeId);
 }
 
-export async function loadProductDetail(repo: AppRepository, productId: number, storeId: number) {
-  return repo.getProductDetail(productId, storeId);
+export async function loadProductDetail(
+  repo: AppRepository,
+  productId: number,
+  storeId: number,
+  locale: string
+) {
+  return repo.getProductDetail(productId, storeId, locale);
 }
 
 export async function recordOutboxEvent(

@@ -3,6 +3,7 @@ import type {
   PackDelta,
   PackProduct,
   PackProductLocation,
+  PackProductTranslation,
   PackProductVariant,
   PackStore,
   PackZone,
@@ -24,6 +25,8 @@ export function createPackRepository(): PackRepository {
           FROM (
             SELECT MAX(updated_at) as ts FROM product_locations WHERE store_id = $1
             UNION ALL
+            SELECT MAX(created_at) as ts FROM product_translations
+            UNION ALL
             SELECT MAX(created_at) as ts FROM product_variants
             UNION ALL
             SELECT MAX(created_at) as ts FROM products
@@ -41,6 +44,7 @@ export function createPackRepository(): PackRepository {
             stores: { upserts: [], deletes: [] },
             zones: { upserts: [], deletes: [] },
             products: { upserts: [], deletes: [] },
+            product_translations: { upserts: [], deletes: [] },
             product_variants: { upserts: [], deletes: [] },
             product_locations: { upserts: [], deletes: [] },
           };
@@ -58,6 +62,10 @@ export function createPackRepository(): PackRepository {
             'SELECT id, name, category FROM products WHERE created_at > $1 ORDER BY id ASC',
             [sinceDate?.toISOString()]
           );
+          const translationsResult = await client.query<PackProductTranslation>(
+            'SELECT product_id, locale, name FROM product_translations WHERE created_at > $1 ORDER BY product_id ASC',
+            [sinceDate?.toISOString()]
+          );
           const variantsResult = await client.query<PackProductVariant>(
             'SELECT id, product_id, brand, ean FROM product_variants WHERE created_at > $1',
             [sinceDate?.toISOString()]
@@ -72,6 +80,10 @@ export function createPackRepository(): PackRepository {
             store_id: Number(row.store_id),
             zone_id: row.zone_id === null ? null : Number(row.zone_id),
           }));
+          const productTranslations = translationsResult.rows.map((row) => ({
+            ...row,
+            product_id: Number(row.product_id),
+          }));
           const productVariants = variantsResult.rows.map((row) => ({
             ...row,
             id: Number(row.id),
@@ -82,6 +94,7 @@ export function createPackRepository(): PackRepository {
             stores: { upserts: [], deletes: [] },
             zones: { upserts: [], deletes: [] },
             products: { upserts: products, deletes: [] },
+            product_translations: { upserts: productTranslations, deletes: [] },
             product_variants: { upserts: productVariants, deletes: [] },
             product_locations: { upserts: productLocations, deletes: [] },
           };
@@ -99,6 +112,9 @@ export function createPackRepository(): PackRepository {
         );
         const productsResult = await client.query<PackProduct>(
           'SELECT id, name, category FROM products ORDER BY id ASC'
+        );
+        const translationsResult = await client.query<PackProductTranslation>(
+          'SELECT product_id, locale, name FROM product_translations ORDER BY product_id ASC'
         );
         const variantsResult = await client.query<PackProductVariant>(
           'SELECT id, product_id, brand, ean FROM product_variants ORDER BY id ASC'
@@ -121,6 +137,12 @@ export function createPackRepository(): PackRepository {
           ...row,
           id: Number(row.id),
         }));
+        const productTranslations = translationsResult.rows.map(
+          (row: PackProductTranslation) => ({
+            ...row,
+            product_id: Number(row.product_id),
+          })
+        );
         const productVariants = variantsResult.rows.map((row: PackProductVariant) => ({
           ...row,
           id: Number(row.id),
@@ -138,6 +160,7 @@ export function createPackRepository(): PackRepository {
           stores: { upserts: stores, deletes: [] },
           zones: { upserts: zones, deletes: [] },
           products: { upserts: products, deletes: [] },
+          product_translations: { upserts: productTranslations, deletes: [] },
           product_variants: { upserts: productVariants, deletes: [] },
           product_locations: { upserts: productLocations, deletes: [] },
         };

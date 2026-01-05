@@ -8,6 +8,11 @@ export type Pack = {
   stores: PackTable<{ id: number; name: string }>;
   zones: PackTable<{ id: number; store_id: number; name: string }>;
   products: PackTable<{ id: number; name: string; category: string | null }>;
+  product_translations: PackTable<{
+    product_id: number;
+    locale: string;
+    name: string;
+  }>;
   product_variants: PackTable<{
     id: number;
     product_id: number;

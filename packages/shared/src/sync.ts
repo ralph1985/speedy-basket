@@ -2,6 +2,7 @@ import type {
   EventType,
   PackProduct,
   PackProductLocation,
+  PackProductTranslation,
   PackProductVariant,
   PackStore,
   PackZone,
@@ -43,6 +44,7 @@ export type PackDelta = {
   stores: PackDeltaTable<PackStore>;
   zones: PackDeltaTable<PackZone>;
   products: PackDeltaTable<PackProduct>;
+  product_translations: PackDeltaTable<PackProductTranslation>;
   product_variants: PackDeltaTable<PackProductVariant>;
   product_locations: PackDeltaTable<PackProductLocation>;
   checksum?: string;

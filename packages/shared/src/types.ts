@@ -18,6 +18,12 @@ export type PackProduct = {
   category?: string;
 };
 
+export type PackProductTranslation = {
+  product_id: number;
+  locale: string;
+  name: string;
+};
+
 export type PackProductVariant = {
   id: number;
   product_id: number;
@@ -38,6 +44,7 @@ export type Pack = {
   stores: PackStore[];
   zones: PackZone[];
   products: PackProduct[];
+  product_translations: PackProductTranslation[];
   product_variants: PackProductVariant[];
   product_locations: PackProductLocation[];
 };

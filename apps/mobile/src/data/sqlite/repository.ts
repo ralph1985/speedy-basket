@@ -41,11 +41,16 @@ export class SqliteRepository implements AppRepository {
     return listStores(this.requireDb());
   }
 
-  async listProducts(search: string, storeId: number) {
-    return listProducts(this.requireDb(), search, storeId);
+  async listProducts(search: string, storeId: number, locale: string) {
+    return listProducts(this.requireDb(), search, storeId, locale);
   }
 
-  async insertProduct(product: { id: number; name: string; category: string | null }) {
+  async insertProduct(product: {
+    id: number;
+    name: string;
+    category: string | null;
+    locale: string;
+  }) {
     await insertProduct(this.requireDb(), product);
   }
 
@@ -53,8 +58,8 @@ export class SqliteRepository implements AppRepository {
     return listZones(this.requireDb(), storeId);
   }
 
-  async getProductDetail(productId: number, storeId: number) {
-    return getProductDetail(this.requireDb(), productId, storeId);
+  async getProductDetail(productId: number, storeId: number, locale: string) {
+    return getProductDetail(this.requireDb(), productId, storeId, locale);
   }
 
   async createOutboxEvent(type: EventType, payload: Record<string, unknown>) {
