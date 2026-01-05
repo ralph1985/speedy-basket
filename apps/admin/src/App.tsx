@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type PackTable<T> = {
   upserts: T[];
@@ -19,6 +19,10 @@ type Pack = {
 };
 
 const DEFAULT_API_BASE = 'http://127.0.0.1:3001';
+const PRESET_APIS = {
+  local: 'http://127.0.0.1:3001',
+  render: 'https://speedy-basket.onrender.com',
+};
 
 function readStored(key: string, fallback: string) {
   if (typeof window === 'undefined') return fallback;
@@ -28,6 +32,7 @@ function readStored(key: string, fallback: string) {
 export default function App() {
   const [apiBase, setApiBase] = useState(() => readStored('sb_admin_api', DEFAULT_API_BASE));
   const [storeId, setStoreId] = useState(() => readStored('sb_admin_store', '1'));
+  const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [pack, setPack] = useState<Pack | null>(null);
@@ -50,7 +55,33 @@ export default function App() {
     window.localStorage.setItem('sb_admin_store', storeId);
   }, [storeId]);
 
-  const handleLoad = async () => {
+  useEffect(() => {
+    let active = true;
+    const loadStores = async () => {
+      try {
+        const res = await fetch(`${apiBase}/stores`);
+        if (!res.ok) {
+          throw new Error(`Failed to load stores (${res.status})`);
+        }
+        const data = (await res.json()) as Array<{ id: number; name: string }>;
+        if (!active) return;
+        setStores(data);
+        if (data.length > 0 && !data.some((store) => `${store.id}` === storeId)) {
+          setStoreId(`${data[0].id}`);
+        }
+      } catch (err) {
+        if (!active) return;
+        setStores([]);
+      }
+    };
+    loadStores();
+    return () => {
+      active = false;
+    };
+  }, [apiBase, storeId]);
+
+  const handleLoad = useCallback(async () => {
+    if (!storeId) return;
     setStatus('loading');
     setError(null);
     try {
@@ -65,7 +96,12 @@ export default function App() {
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Unknown error');
     }
-  };
+  }, [apiBase, storeId]);
+
+  useEffect(() => {
+    if (!storeId) return;
+    handleLoad();
+  }, [handleLoad, storeId]);
 
   return (
     <main className="container">
@@ -80,22 +116,53 @@ export default function App() {
       </header>
 
       <section className="panel">
+        <div className="row">
+          <label>
+            API base
+            <input
+              type="text"
+              value={apiBase}
+              onChange={(event) => setApiBase(event.target.value)}
+            />
+          </label>
+          <div className="quick">
+            <span className="muted">Accesos rapidos</span>
+            <div className="pill-row">
+              <button
+                type="button"
+                className="pill"
+                onClick={() => setApiBase(PRESET_APIS.local)}
+              >
+                Local
+              </button>
+              <button
+                type="button"
+                className="pill"
+                onClick={() => setApiBase(PRESET_APIS.render)}
+              >
+                Render
+              </button>
+            </div>
+          </div>
+        </div>
         <label>
-          API base
-          <input
-            type="text"
-            value={apiBase}
-            onChange={(event) => setApiBase(event.target.value)}
-          />
-        </label>
-        <label>
-          Store ID
-          <input
-            type="number"
-            min="1"
-            value={storeId}
-            onChange={(event) => setStoreId(event.target.value)}
-          />
+          Store
+          {stores.length > 0 ? (
+            <select value={storeId} onChange={(event) => setStoreId(event.target.value)}>
+              {stores.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name} (#{store.id})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="number"
+              min="1"
+              value={storeId}
+              onChange={(event) => setStoreId(event.target.value)}
+            />
+          )}
         </label>
         {status === 'error' && <p className="error">{error}</p>}
       </section>

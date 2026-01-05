@@ -12,6 +12,7 @@
   },
   "private": true,
   "dependencies": {
+    "@fastify/cors": "8.5.0",
     "@speedy-basket/shared": "workspace:0.1.0",
     "dotenv": "16.4.5",
     "fastify": "4.29.0",

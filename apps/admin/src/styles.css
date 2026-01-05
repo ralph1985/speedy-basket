@@ -62,6 +62,33 @@ button:disabled {
   gap: 12px;
 }
 
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.quick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pill-row {
+  display: flex;
+  gap: 8px;
+}
+
+button.pill {
+  background: #f3f1ee;
+  color: #1f1f1f;
+  border: 1px solid #d9d4cd;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -74,6 +101,14 @@ input {
   border-radius: 10px;
   padding: 8px 10px;
   font-size: 14px;
+}
+
+select {
+  border: 1px solid #d9d4cd;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: #fff;
 }
 
 .error {
