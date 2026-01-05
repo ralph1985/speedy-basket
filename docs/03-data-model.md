@@ -4,7 +4,8 @@
 
 - stores(id, name)
 - zones(id, store_id, name, polygon_or_meta)
-- products(id, name, brand, ean?, category)
+- products(id, name, category)
+- product_variants(id, product_id, brand?, ean?)
 - product_locations(product_id, store_id, zone_id, confidence, updated_at)
 - outbox_events(id, type, payload_json, created_at, sent_at?)
 - app*meta(key, value) # key/value para estado local (pack_version, sync_last*\*)
@@ -20,7 +21,8 @@
 - roles (key: admin, map_editor, store_editor, user)
 - user_roles (user_id, role_id, store_id)
 - zones
-- products
+- products (genericos)
+- product_variants (marca + ean)
 - events (append-only)
 - product_locations (consolidado)
 - store_packs (store_id, version, created_at, hash, size)

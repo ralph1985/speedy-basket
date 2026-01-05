@@ -9,7 +9,6 @@ export type ProductListItem = {
 export type ProductDetail = {
   id: number;
   name: string;
-  brand: string | null;
   category: string | null;
   zoneId: number | null;
   zoneName: string | null;

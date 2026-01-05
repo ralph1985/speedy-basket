@@ -15,9 +15,14 @@ export type PackZone = {
 export type PackProduct = {
   id: number;
   name: string;
+  category?: string;
+};
+
+export type PackProductVariant = {
+  id: number;
+  product_id: number;
   brand?: string;
   ean?: string;
-  category?: string;
 };
 
 export type PackProductLocation = {
@@ -33,6 +38,7 @@ export type Pack = {
   stores: PackStore[];
   zones: PackZone[];
   products: PackProduct[];
+  product_variants: PackProductVariant[];
   product_locations: PackProductLocation[];
 };
 

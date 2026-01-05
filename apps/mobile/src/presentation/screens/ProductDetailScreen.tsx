@@ -33,7 +33,6 @@ export default function ProductDetailScreen() {
           detail={{
             id: productId,
             name: t('status.initializing'),
-            brand: null,
             category: null,
             zoneId: null,
             zoneName: null,

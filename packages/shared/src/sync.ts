@@ -1,4 +1,11 @@
-import type { EventType, PackProduct, PackProductLocation, PackStore, PackZone } from './types';
+import type {
+  EventType,
+  PackProduct,
+  PackProductLocation,
+  PackProductVariant,
+  PackStore,
+  PackZone,
+} from './types';
 
 export type FoundEventPayload = {
   productId: number;
@@ -36,6 +43,7 @@ export type PackDelta = {
   stores: PackDeltaTable<PackStore>;
   zones: PackDeltaTable<PackZone>;
   products: PackDeltaTable<PackProduct>;
+  product_variants: PackDeltaTable<PackProductVariant>;
   product_locations: PackDeltaTable<PackProductLocation>;
   checksum?: string;
 };

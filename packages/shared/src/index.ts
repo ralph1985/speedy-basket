@@ -3,6 +3,7 @@ export type {
   OutboxEvent,
   Pack,
   PackProduct,
+  PackProductVariant,
   PackProductLocation,
   PackStore,
   PackZone,

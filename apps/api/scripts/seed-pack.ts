@@ -76,7 +76,14 @@ async function run() {
   await upsertRows(pool, {
     table: 'products',
     rows: pack.products,
-    columns: ['id', 'name', 'brand', 'ean', 'category'],
+    columns: ['id', 'name', 'category'],
+    conflictKeys: ['id'],
+  });
+
+  await upsertRows(pool, {
+    table: 'product_variants',
+    rows: pack.product_variants,
+    columns: ['id', 'product_id', 'brand', 'ean'],
     conflictKeys: ['id'],
   });
 

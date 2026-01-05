@@ -3,6 +3,7 @@ import type {
   PackDelta,
   PackProduct,
   PackProductLocation,
+  PackProductVariant,
   PackStore,
   PackZone,
 } from '@speedy-basket/shared';
@@ -31,6 +32,7 @@ export function createPackRepository(): PackRepository {
             stores: { upserts: [], deletes: [] },
             zones: { upserts: [], deletes: [] },
             products: { upserts: [], deletes: [] },
+            product_variants: { upserts: [], deletes: [] },
             product_locations: { upserts: [], deletes: [] },
           };
           return emptyDelta;
@@ -43,17 +45,27 @@ export function createPackRepository(): PackRepository {
             'SELECT product_id, store_id, zone_id, confidence, updated_at FROM product_locations WHERE store_id = $1 AND updated_at > $2',
             [storeId, sinceDate?.toISOString()]
           );
+          const variantsResult = await client.query<PackProductVariant>(
+            'SELECT id, product_id, brand, ean FROM product_variants WHERE created_at > $1',
+            [sinceDate?.toISOString()]
+          );
           const productLocations = locationsResult.rows.map((row) => ({
             ...row,
             product_id: Number(row.product_id),
             store_id: Number(row.store_id),
             zone_id: row.zone_id === null ? null : Number(row.zone_id),
           }));
+          const productVariants = variantsResult.rows.map((row) => ({
+            ...row,
+            id: Number(row.id),
+            product_id: Number(row.product_id),
+          }));
           const delta: PackDelta = {
             version: currentVersion,
             stores: { upserts: [], deletes: [] },
             zones: { upserts: [], deletes: [] },
             products: { upserts: [], deletes: [] },
+            product_variants: { upserts: productVariants, deletes: [] },
             product_locations: { upserts: productLocations, deletes: [] },
           };
           const response: GetPackDeltaResponse = delta;
@@ -69,7 +81,10 @@ export function createPackRepository(): PackRepository {
           [storeId]
         );
         const productsResult = await client.query<PackProduct>(
-          'SELECT id, name, brand, ean, category FROM products ORDER BY id ASC'
+          'SELECT id, name, category FROM products ORDER BY id ASC'
+        );
+        const variantsResult = await client.query<PackProductVariant>(
+          'SELECT id, product_id, brand, ean FROM product_variants ORDER BY id ASC'
         );
         const locationsResult = await client.query<PackProductLocation>(
           'SELECT product_id, store_id, zone_id, confidence, updated_at FROM product_locations WHERE store_id = $1',
@@ -89,6 +104,11 @@ export function createPackRepository(): PackRepository {
           ...row,
           id: Number(row.id),
         }));
+        const productVariants = variantsResult.rows.map((row: PackProductVariant) => ({
+          ...row,
+          id: Number(row.id),
+          product_id: Number(row.product_id),
+        }));
         const productLocations = locationsResult.rows.map((row: PackProductLocation) => ({
           ...row,
           product_id: Number(row.product_id),
@@ -101,6 +121,7 @@ export function createPackRepository(): PackRepository {
           stores: { upserts: stores, deletes: [] },
           zones: { upserts: zones, deletes: [] },
           products: { upserts: products, deletes: [] },
+          product_variants: { upserts: productVariants, deletes: [] },
           product_locations: { upserts: productLocations, deletes: [] },
         };
 

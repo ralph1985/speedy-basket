@@ -44,6 +44,8 @@ const hasDeltaChanges = (delta: PackDelta) =>
   delta.zones.deletes.length > 0 ||
   delta.products.upserts.length > 0 ||
   delta.products.deletes.length > 0 ||
+  delta.product_variants.upserts.length > 0 ||
+  delta.product_variants.deletes.length > 0 ||
   delta.product_locations.upserts.length > 0 ||
   delta.product_locations.deletes.length > 0;
 
@@ -471,6 +473,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
             delta_stores: `${delta.stores.upserts.length}/${delta.stores.deletes.length}`,
             delta_zones: `${delta.zones.upserts.length}/${delta.zones.deletes.length}`,
             delta_products: `${delta.products.upserts.length}/${delta.products.deletes.length}`,
+            delta_variants: `${delta.product_variants.upserts.length}/${delta.product_variants.deletes.length}`,
             delta_locations: `${delta.product_locations.upserts.length}/${delta.product_locations.deletes.length}`,
             duration_ms: `${durationMs}`,
           });

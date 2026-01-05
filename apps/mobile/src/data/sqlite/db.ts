@@ -36,9 +36,16 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
+      category TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS product_variants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
       brand TEXT,
       ean TEXT,
-      category TEXT
+      created_at TEXT,
+      FOREIGN KEY(product_id) REFERENCES products(id)
     );
 
     CREATE TABLE IF NOT EXISTS product_locations (
@@ -68,6 +75,7 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
 
     CREATE INDEX IF NOT EXISTS idx_zones_store_id ON zones (store_id);
     CREATE INDEX IF NOT EXISTS idx_products_name ON products (name);
+    CREATE INDEX IF NOT EXISTS idx_product_variants_product ON product_variants (product_id);
     CREATE INDEX IF NOT EXISTS idx_product_locations_store_updated ON product_locations (store_id, updated_at);
     CREATE INDEX IF NOT EXISTS idx_outbox_events_sent_at ON outbox_events (sent_at);
   `);
@@ -120,8 +128,14 @@ export async function importPack(db: SQLite.SQLiteDatabase, pack: Pack, force = 
   }
   for (const product of pack.products) {
     await db.runAsync(
-      'INSERT OR IGNORE INTO products (id, name, brand, ean, category) VALUES (?, ?, ?, ?, ?)',
-      [product.id, product.name, product.brand ?? null, product.ean ?? null, product.category ?? null]
+      'INSERT OR IGNORE INTO products (id, name, category) VALUES (?, ?, ?)',
+      [product.id, product.name, product.category ?? null]
+    );
+  }
+  for (const variant of pack.product_variants) {
+    await db.runAsync(
+      'INSERT OR IGNORE INTO product_variants (id, product_id, brand, ean, created_at) VALUES (?, ?, ?, ?, ?)',
+      [variant.id, variant.product_id, variant.brand ?? null, variant.ean ?? null, null]
     );
   }
   for (const location of pack.product_locations) {
@@ -165,7 +179,7 @@ export async function getProductDetail(
   storeId: number
 ) {
   return db.getFirstAsync<ProductDetail>(
-    `SELECT p.id, p.name, p.brand, p.category, pl.zone_id as zoneId, z.name as zoneName
+    `SELECT p.id, p.name, p.category, pl.zone_id as zoneId, z.name as zoneName
      FROM products p
      LEFT JOIN product_locations pl ON pl.product_id = p.id AND pl.store_id = ?
      LEFT JOIN zones z ON z.id = pl.zone_id
@@ -219,7 +233,14 @@ export async function markOutboxEventsSent(db: SQLite.SQLiteDatabase, ids: strin
 }
 
 export async function getTableCounts(db: SQLite.SQLiteDatabase) {
-  const tables = ['stores', 'zones', 'products', 'product_locations', 'outbox_events'];
+  const tables = [
+    'stores',
+    'zones',
+    'products',
+    'product_variants',
+    'product_locations',
+    'outbox_events',
+  ];
   const counts: Record<string, number> = {};
   for (const table of tables) {
     const row = await db.getFirstAsync<{ count: number }>(
@@ -233,6 +254,7 @@ export async function getTableCounts(db: SQLite.SQLiteDatabase) {
 export async function resetDatabase(db: SQLite.SQLiteDatabase) {
   await db.execAsync(`
     DELETE FROM product_locations;
+    DELETE FROM product_variants;
     DELETE FROM products;
     DELETE FROM zones;
     DELETE FROM stores;
@@ -256,8 +278,14 @@ export async function applyPackDelta(db: SQLite.SQLiteDatabase, delta: PackDelta
   }
   for (const product of delta.products.upserts) {
     await db.runAsync(
-      'INSERT OR REPLACE INTO products (id, name, brand, ean, category) VALUES (?, ?, ?, ?, ?)',
-      [product.id, product.name, product.brand ?? null, product.ean ?? null, product.category ?? null]
+      'INSERT OR REPLACE INTO products (id, name, category) VALUES (?, ?, ?)',
+      [product.id, product.name, product.category ?? null]
+    );
+  }
+  for (const variant of delta.product_variants.upserts) {
+    await db.runAsync(
+      'INSERT OR REPLACE INTO product_variants (id, product_id, brand, ean, created_at) VALUES (?, ?, ?, ?, ?)',
+      [variant.id, variant.product_id, variant.brand ?? null, variant.ean ?? null, null]
     );
   }
   for (const location of delta.product_locations.upserts) {
@@ -284,5 +312,12 @@ export async function applyPackDelta(db: SQLite.SQLiteDatabase, delta: PackDelta
   if (delta.products.deletes.length > 0) {
     const placeholders = delta.products.deletes.map(() => '?').join(', ');
     await db.runAsync(`DELETE FROM products WHERE id IN (${placeholders})`, delta.products.deletes);
+  }
+  if (delta.product_variants.deletes.length > 0) {
+    const placeholders = delta.product_variants.deletes.map(() => '?').join(', ');
+    await db.runAsync(
+      `DELETE FROM product_variants WHERE id IN (${placeholders})`,
+      delta.product_variants.deletes
+    );
   }
 }
