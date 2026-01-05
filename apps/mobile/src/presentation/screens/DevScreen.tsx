@@ -10,6 +10,8 @@ export default function DevScreen() {
     outboxSent,
     lastSyncStats,
     isSyncing,
+    authToken,
+    setAuthToken,
     refreshDevData,
     handleReset,
     handleSync,
@@ -20,6 +22,7 @@ export default function DevScreen() {
     <HomeLayout showDevInfo>
       <DevPanel
         apiBaseUrl={API_BASE_URL}
+        authToken={authToken}
         tableCounts={tableCounts}
         outboxPending={outboxPending}
         outboxSent={outboxSent}
@@ -28,6 +31,7 @@ export default function DevScreen() {
         onRefresh={refreshDevData}
         onReset={handleReset}
         onSync={handleSync}
+        onSetAuthToken={setAuthToken}
         t={t}
       />
     </HomeLayout>

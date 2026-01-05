@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { PostEventsRequest, PostEventsResponse, SyncEvent } from '@speedy-basket/shared';
 import type { EventRepository } from '../../ports/EventRepository';
 import { ingestEvents } from '../../application/ingestEvents';
+import { getAuthUserId } from '../auth';
 
 const eventTypeSchema = z.enum(['FOUND', 'NOT_FOUND', 'SCANNED_EAN']);
 
@@ -35,9 +36,13 @@ const postEventsSchema = z.object({
 });
 
 export function registerEventsRoutes(server: FastifyInstance, deps: { events: EventRepository }) {
-  server.post('/events', async (request) => {
+  server.post('/events', async (request, reply) => {
+    const userId = await getAuthUserId(request);
+    if (!userId) {
+      return reply.code(401).send({ error: 'Unauthorized' });
+    }
     const data = postEventsSchema.parse(request.body) as PostEventsRequest;
-    const accepted = await ingestEvents(deps.events, data.events as SyncEvent[]);
+    const accepted = await ingestEvents(deps.events, data.events as SyncEvent[], userId);
     const response: PostEventsResponse = { accepted };
     return response;
   });

@@ -19,6 +19,26 @@
 - Comprueba que el movil y el ordenador estan en la misma red.
 - Para la web admin, usa `http://127.0.0.1:3001` o selecciona el preset Local.
 
+## Auth (Supabase)
+
+- Configura `SUPABASE_JWKS_URL` en el entorno del API.
+- En Supabase, usa el Discovery URL y busca el campo `jwks_uri`.
+- En la app, pega el access token en Dev > Auth token.
+- En admin web, pega el token en el campo "Auth token".
+
+### Obtener access token (password grant)
+
+```bash
+curl -X POST \
+  'https://<project-ref>.supabase.co/auth/v1/token?grant_type=password' \
+  -H "apikey: <ANON_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "your-password"
+  }'
+```
+
 ## Debug
 
 - Flipper: logs + network

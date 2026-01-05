@@ -16,6 +16,7 @@ pnpm dev:admin
 - La web admin consulta a la API (no a Supabase directo) para mantener seguridad.
 - Usa el selector de tienda para cargar el pack con `/pack?storeId=...`.
 - El selector se alimenta con `/stores`.
+- Necesitas un access token en el campo "Auth token" para autenticar las llamadas.
 
 ## Notas
 

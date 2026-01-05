@@ -6,6 +6,7 @@ import { registerHealthRoutes } from './routes/health';
 import { createEventRepository } from '../infra/db/eventRepo';
 import { createPackRepository } from '../infra/db/packRepo';
 import { registerStoresRoutes } from './routes/stores';
+import { registerProfileRoutes } from './routes/profile';
 
 export function createServer() {
   const server = Fastify({ logger: true });
@@ -33,6 +34,7 @@ export function createServer() {
   registerEventsRoutes(server, { events: eventRepo });
   registerPacksRoutes(server, { packs: packRepo });
   registerStoresRoutes(server);
+  registerProfileRoutes(server);
 
   return server;
 }

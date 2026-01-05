@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, SegmentedButtons } from 'react-native-paper';
+import { Button, SegmentedButtons, TextInput } from 'react-native-paper';
 import type { OutboxEventItem } from '@domain/types';
 import colors from '@presentation/styles/colors';
 import { useMemo, useState } from 'react';
@@ -7,6 +7,7 @@ import type { TFunction } from '@presentation/i18n';
 
 type Props = {
   apiBaseUrl: string;
+  authToken: string;
   tableCounts: Record<string, number>;
   outboxPending: OutboxEventItem[];
   outboxSent: OutboxEventItem[];
@@ -15,11 +16,13 @@ type Props = {
   onRefresh: () => void;
   onReset: () => void;
   onSync: () => void;
+  onSetAuthToken: (token: string) => void;
   t: TFunction;
 };
 
 export default function DevPanel({
   apiBaseUrl,
+  authToken,
   tableCounts,
   outboxPending,
   outboxSent,
@@ -28,6 +31,7 @@ export default function DevPanel({
   onRefresh,
   onReset,
   onSync,
+  onSetAuthToken,
   t,
 }: Props) {
   const [section, setSection] = useState('overview');
@@ -51,6 +55,15 @@ export default function DevPanel({
             <View style={styles.section}>
               <Text style={styles.meta}>{t('dev.apiBase')}</Text>
               <Text style={styles.row}>{apiBaseUrl}</Text>
+            </View>
+            <View style={styles.section}>
+              <Text style={styles.meta}>{t('dev.authToken')}</Text>
+              <TextInput
+                mode="outlined"
+                value={authToken}
+                onChangeText={onSetAuthToken}
+                placeholder={t('dev.authTokenPlaceholder')}
+              />
             </View>
             <View style={styles.section}>
               <Text style={styles.meta}>{t('dev.dbCounts')}</Text>

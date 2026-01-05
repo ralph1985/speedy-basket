@@ -46,18 +46,28 @@ const hasDeltaChanges = (delta: PackDelta) =>
   delta.product_locations.upserts.length > 0 ||
   delta.product_locations.deletes.length > 0;
 
-async function fetchPackDelta(storeId: number, since?: string | null) {
+async function fetchPackDelta(storeId: number, authToken: string, since?: string | null) {
   const query = since ? `&since=${encodeURIComponent(since)}` : '';
-  const res = await fetch(`${API_BASE_URL}/pack?storeId=${storeId}${query}`);
+  const headers: Record<string, string> = {};
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  const res = await fetch(`${API_BASE_URL}/pack?storeId=${storeId}${query}`, {
+    headers,
+  });
   if (!res.ok) throw new Error('Failed to fetch pack');
   return res.json();
 }
 
-async function postEvents(events: SyncEvent[]) {
+async function postEvents(events: SyncEvent[], authToken: string) {
   if (events.length === 0) return 0;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
   const res = await fetch(`${API_BASE_URL}/events`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ events }),
   });
   if (!res.ok) throw new Error('Failed to post events');
@@ -69,6 +79,8 @@ type HomeContextValue = {
   t: TFunction;
   language: Language;
   setLanguage: (language: Language) => void;
+  authToken: string;
+  setAuthToken: (token: string) => void;
   statusText: string;
   stores: { id: number; name: string }[];
   activeStoreId: number | null;
@@ -128,6 +140,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [lastSyncStats, setLastSyncStats] = useState<Record<string, string> | null>(null);
   const [language, setLanguage] = useState<Language>('es');
+  const [authToken, setAuthTokenState] = useState('');
   const [isReady, setIsReady] = useState(false);
   const t = useMemo(() => createTranslator(language), [language]);
   const statusText = t(statusKey, statusParams);
@@ -183,10 +196,11 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       try {
         await initApp(repo);
         await ensurePack(repo, pack);
-        const [count, storedLanguage, storedActiveStoreId] = await Promise.all([
+        const [count, storedLanguage, storedActiveStoreId, storedToken] = await Promise.all([
           loadStoreCount(repo),
           repo.getMetaValue('language'),
           repo.getMetaValue('active_store_id'),
+          repo.getMetaValue('auth_token'),
         ]);
         const storeRows = await loadStores(repo);
         const parsedStoreId = storedActiveStoreId ? Number(storedActiveStoreId) : null;
@@ -201,6 +215,9 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
           setActiveStoreIdState(nextStoreId);
           if (isLanguage(storedLanguage)) {
             setLanguage(storedLanguage);
+          }
+          if (storedToken) {
+            setAuthTokenState(storedToken);
           }
           if (nextStoreId) {
             repo.setMetaValue('active_store_id', `${nextStoreId}`).catch((error) => {
@@ -249,6 +266,15 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     }
   }, [isReady, language, repo]);
 
+  const setAuthToken = useCallback(
+    async (token: string) => {
+      const trimmed = token.trim();
+      setAuthTokenState(trimmed);
+      await repo.setMetaValue('auth_token', trimmed);
+    },
+    [repo]
+  );
+
   const setSearch = useCallback(
     async (value: string) => {
       setSearchValue(value);
@@ -284,6 +310,20 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       setStatusParams({});
       await repo.setMetaValue('sync_last_attempt', new Date().toISOString());
       const storeId = activeStoreId ?? fallbackStoreId(pack);
+      const token = authToken.trim();
+      if (!token) {
+        setStatusKey('status.authRequired');
+        setStatusParams({});
+        const now = new Date().toISOString();
+        await repo.setMetaValue('sync_last_at', now);
+        await repo.setMetaValue('sync_last_status', 'failed');
+        await repo.setMetaValue('sync_last_error', 'Auth token required');
+        setLastSyncAt(now);
+        setLastSyncStatus('failed');
+        setLastSyncError('Auth token required');
+        setIsSyncing(false);
+        return;
+      }
       let accepted = 0;
       let hasChanges = false;
       const syncStartedAt = Date.now();
@@ -292,7 +332,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
         try {
           const since = await repo.getPackVersion();
-          const delta = (await fetchPackDelta(storeId, since)) as PackDelta;
+          const delta = (await fetchPackDelta(storeId, token, since)) as PackDelta;
           hasChanges = hasDeltaChanges(delta);
           await repo.applyPackDelta(delta);
 
@@ -309,7 +349,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
               payload,
             };
           }) as SyncEvent[];
-          accepted = await postEvents(events);
+          accepted = await postEvents(events, token);
           if (accepted > 0) {
             await repo.markOutboxEventsSent(pending.slice(0, accepted).map((item) => item.id));
           }
@@ -376,6 +416,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     }
   }, [
     activeStoreId,
+    authToken,
     isSyncing,
     pack,
     refreshDevData,
@@ -413,6 +454,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       t,
       language,
       setLanguage,
+      authToken,
+      setAuthToken,
       statusText,
       stores,
       activeStoreId,
@@ -439,6 +482,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       recordEvent,
     }),
     [
+      authToken,
       handleReset,
       handleSync,
       isSyncing,
@@ -456,6 +500,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       search,
       selectedZoneId,
       setSearch,
+      setAuthToken,
       statusText,
       stores,
       activeStoreId,

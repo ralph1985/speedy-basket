@@ -32,6 +32,7 @@ function readStored(key: string, fallback: string) {
 export default function App() {
   const [apiBase, setApiBase] = useState(() => readStored('sb_admin_api', DEFAULT_API_BASE));
   const [storeId, setStoreId] = useState(() => readStored('sb_admin_store', '1'));
+  const [authToken, setAuthToken] = useState(() => readStored('sb_admin_token', ''));
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [activeTab, setActiveTab] = useState<'stores' | 'zones' | 'products' | 'locations'>(
     'stores'
@@ -40,6 +41,7 @@ export default function App() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [pack, setPack] = useState<Pack | null>(null);
+  const hasToken = authToken.trim().length > 0;
 
   const counts = useMemo(() => {
     if (!pack) return null;
@@ -78,10 +80,24 @@ export default function App() {
   }, [storeId]);
 
   useEffect(() => {
+    window.localStorage.setItem('sb_admin_token', authToken);
+  }, [authToken]);
+
+  const authHeaders = useMemo(() => {
+    if (!authToken.trim()) return {};
+    return { Authorization: `Bearer ${authToken.trim()}` };
+  }, [authToken]);
+
+  useEffect(() => {
     let active = true;
     const loadStores = async () => {
       try {
-        const res = await fetch(`${apiBase}/stores`);
+        if (!hasToken) {
+          setStores([]);
+          setError('Auth token requerido.');
+          return;
+        }
+        const res = await fetch(`${apiBase}/stores`, { headers: authHeaders });
         if (!res.ok) {
           throw new Error(`Failed to load stores (${res.status})`);
         }
@@ -100,14 +116,21 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [apiBase, storeId]);
+  }, [apiBase, authHeaders, hasToken, storeId]);
 
   const handleLoad = useCallback(async () => {
     if (!storeId) return;
+    if (!hasToken) {
+      setStatus('error');
+      setError('Auth token requerido.');
+      return;
+    }
     setStatus('loading');
     setError(null);
     try {
-      const res = await fetch(`${apiBase}/pack?storeId=${encodeURIComponent(storeId)}`);
+      const res = await fetch(`${apiBase}/pack?storeId=${encodeURIComponent(storeId)}`, {
+        headers: authHeaders,
+      });
       if (!res.ok) {
         throw new Error(`Request failed (${res.status})`);
       }
@@ -118,7 +141,7 @@ export default function App() {
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Unknown error');
     }
-  }, [apiBase, storeId]);
+  }, [apiBase, authHeaders, hasToken, storeId]);
 
   useEffect(() => {
     if (!storeId) return;
@@ -140,14 +163,23 @@ export default function App() {
       <div className="layout">
         <aside className="panel sidebar">
           <div className="row">
-            <label>
-              API base
-              <input
-                type="text"
-                value={apiBase}
-                onChange={(event) => setApiBase(event.target.value)}
-              />
-            </label>
+          <label>
+            API base
+            <input
+              type="text"
+              value={apiBase}
+              onChange={(event) => setApiBase(event.target.value)}
+            />
+          </label>
+          <label>
+            Auth token
+            <input
+              type="password"
+              value={authToken}
+              placeholder="Supabase access token"
+              onChange={(event) => setAuthToken(event.target.value)}
+            />
+          </label>
             <div className="quick">
               <span className="muted">Accesos rapidos</span>
               <div className="pill-row">
