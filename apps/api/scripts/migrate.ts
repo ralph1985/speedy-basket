@@ -15,9 +15,34 @@ async function run() {
   }
 
   const pool = getDbPool();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      filename TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  const appliedRes = await pool.query<{ filename: string }>(
+    'SELECT filename FROM schema_migrations'
+  );
+  const applied = new Set(appliedRes.rows.map((row) => row.filename));
+
   for (const file of files) {
+    if (applied.has(file)) {
+      continue;
+    }
     const sql = await fs.readFile(path.join(migrationsDir, file), 'utf8');
-    await pool.query(sql);
+    try {
+      await pool.query('BEGIN');
+      await pool.query(sql);
+      await pool.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [
+        file,
+      ]);
+      await pool.query('COMMIT');
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
     console.log(`Applied ${file}`);
   }
 

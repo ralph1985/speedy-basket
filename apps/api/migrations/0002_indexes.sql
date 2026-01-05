@@ -10,6 +10,15 @@ CREATE INDEX IF NOT EXISTS idx_zones_store_id
 CREATE INDEX IF NOT EXISTS idx_products_name
   ON products (name);
 
-ALTER TABLE product_locations
-  ADD CONSTRAINT product_locations_confidence_range
-  CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'product_locations_confidence_range'
+  ) THEN
+    ALTER TABLE product_locations
+      ADD CONSTRAINT product_locations_confidence_range
+      CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1));
+  END IF;
+END $$;
