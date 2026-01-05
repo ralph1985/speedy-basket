@@ -164,7 +164,7 @@ export default function App() {
           setError('Auth token requerido.');
           return;
         }
-        const res = await fetch(`${apiBase}/stores`, { headers: authHeaders });
+        const res = await fetch(`${apiBase}/admin/stores`, { headers: authHeaders });
         if (!res.ok) {
           throw new Error(`Failed to load stores (${res.status})`);
         }
@@ -195,7 +195,7 @@ export default function App() {
     setStatus('loading');
     setError(null);
     try {
-      const res = await fetch(`${apiBase}/pack?storeId=${encodeURIComponent(storeId)}`, {
+      const res = await fetch(`${apiBase}/admin/pack?storeId=${encodeURIComponent(storeId)}`, {
         headers: authHeaders,
       });
       if (!res.ok) {

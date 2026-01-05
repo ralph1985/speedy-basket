@@ -21,9 +21,20 @@ VITE_SUPABASE_ANON_KEY=...
 ## Flujo
 
 - La web admin consulta a la API (no a Supabase directo) para mantener seguridad.
-- Usa el selector de tienda para cargar el pack con `/pack?storeId=...`.
-- El selector se alimenta con `/stores`.
+- Usa el selector de tienda para cargar el pack con `/admin/pack?storeId=...`.
+- El selector se alimenta con `/admin/stores`.
 - Inicia sesion con email/password para autenticar las llamadas.
+- Solo usuarios con rol `admin_god` pueden usar esta web.
+
+## Rol admin_god
+
+```sql
+INSERT INTO user_roles (user_id, role_id, store_id, scope)
+SELECT 'USER_UUID'::uuid, r.id, NULL, 'global'
+FROM roles r
+WHERE r.key = 'admin_god'
+ON CONFLICT (user_id, role_id, store_id) DO NOTHING;
+```
 
 ## Notas
 
