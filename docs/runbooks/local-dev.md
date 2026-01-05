@@ -12,6 +12,7 @@
 - Admin: `pnpm dev:admin`
 - Reset: `pnpm db:reset`
 - Seed: `pnpm db:seed`
+- Export pack (desde Supabase): `pnpm --filter api exec tsx scripts/export-pack.ts`
 
 ## Backend local desde el movil
 
