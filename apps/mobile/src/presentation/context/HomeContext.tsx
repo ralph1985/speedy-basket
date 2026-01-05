@@ -115,6 +115,7 @@ type HomeContextValue = {
   products: ProductListItem[];
   search: string;
   setSearch: (value: string) => void;
+  categories: string[];
   zones: ZoneItem[];
   selectedZoneId: number | null;
   setSelectedZoneId: (zoneId: number) => void;
@@ -132,6 +133,7 @@ type HomeContextValue = {
   loadDetail: (productId: number) => Promise<ProductDetail | null>;
   recordEvent: (detail: ProductDetail, type: 'FOUND' | 'NOT_FOUND') => Promise<void>;
   createProduct: (name: string, category?: string | null) => Promise<void>;
+  refreshCategories: () => Promise<void>;
 };
 
 type ProviderProps = {
@@ -155,6 +157,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [activeStoreId, setActiveStoreIdState] = useState<number | null>(null);
   const [products, setProducts] = useState<ProductListItem[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearchValue] = useState('');
   const [zones, setZones] = useState<ZoneItem[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
@@ -221,6 +224,25 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     },
     [activeStoreId, repo]
   );
+
+  const refreshCategories = useCallback(async () => {
+    const token = authToken.trim();
+    if (!token) {
+      setCategories([]);
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to load categories');
+      const data = (await res.json()) as Array<{ id: number; name: string }>;
+      setCategories(data.map((item) => item.name));
+    } catch (error) {
+      console.error('Failed to fetch categories', error);
+      setCategories([]);
+    }
+  }, [authToken]);
 
   useEffect(() => {
     let mounted = true;
@@ -344,6 +366,12 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   ]);
 
   useEffect(() => {
+    if (isReady && isAuthenticated) {
+      refreshCategories();
+    }
+  }, [isAuthenticated, isReady, refreshCategories]);
+
+  useEffect(() => {
     if (isReady) {
       refreshListData();
       refreshZones();
@@ -392,8 +420,9 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
         repo.setMetaValue('auth_expires_at', expires_at ? `${expires_at}` : ''),
       ]);
       setAuthStatus('idle');
+      await refreshCategories();
     },
-    [repo, t]
+    [refreshCategories, repo, t]
   );
 
   const signOut = useCallback(async () => {
@@ -592,6 +621,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
           name: created.name,
           category: created.category ?? null,
         });
+        await refreshCategories();
         await refreshListData(search, activeStoreId);
         await refreshDevData();
         setStatusKey('status.productCreated');
@@ -602,7 +632,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
         setStatusParams({ message });
       }
     },
-    [activeStoreId, authToken, refreshDevData, refreshListData, repo, search]
+    [activeStoreId, authToken, refreshCategories, refreshDevData, refreshListData, repo, search]
   );
 
   const value = useMemo<HomeContextValue>(
@@ -625,6 +655,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       products,
       search,
       setSearch,
+      categories,
       zones,
       selectedZoneId,
       setSelectedZoneId,
@@ -642,6 +673,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       loadDetail,
       recordEvent,
       createProduct,
+      refreshCategories,
     }),
     [
       authToken,
@@ -664,6 +696,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       products,
       recordEvent,
       createProduct,
+      categories,
+      refreshCategories,
       refreshDevData,
       search,
       selectedZoneId,

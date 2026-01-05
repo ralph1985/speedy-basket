@@ -30,6 +30,10 @@ Incluye:
 
 - POST /products (auth requerida): crea producto generico (name, category?).
 
+## API (read)
+
+- GET /categories (auth requerida): lista categorias base + del usuario.
+
 ## Conflictos
 
 - Se resuelven en backend:

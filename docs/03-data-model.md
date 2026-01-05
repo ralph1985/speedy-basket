@@ -22,6 +22,7 @@
 - user_roles (user_id, role_id, store_id)
 - zones
 - products (genericos, created_by, created_at)
+- categories (name, created_by, created_at)
 - product_variants (marca + ean)
 - events (append-only)
 - product_locations (consolidado)

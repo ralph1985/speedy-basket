@@ -22,6 +22,12 @@ export function registerProductsRoutes(server: FastifyInstance) {
       }
       const { name, category } = createProductSchema.parse(request.body);
       return withAuthClient(userId, async (client) => {
+        if (category && category.trim().length > 0) {
+          await client.query(
+            'INSERT INTO categories (name, created_by) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
+            [category.trim(), userId]
+          );
+        }
         const result = await client.query<{
           id: number;
           name: string;

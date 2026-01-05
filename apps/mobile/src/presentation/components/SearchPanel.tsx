@@ -1,5 +1,5 @@
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { Button, Card, Dialog, Portal, TextInput } from 'react-native-paper';
+import { Button, Card, Chip, Dialog, Portal, TextInput } from 'react-native-paper';
 import { useState } from 'react';
 import type { ProductListItem } from '@domain/types';
 import colors from '@presentation/styles/colors';
@@ -11,6 +11,7 @@ type Props = {
   onSearchChange: (value: string) => void;
   onSelect: (productId: number) => void;
   onCreateProduct: (name: string, category?: string | null) => Promise<void>;
+  categories: string[];
   t: TFunction;
 };
 
@@ -20,6 +21,7 @@ export default function SearchPanel({
   onSearchChange,
   onSelect,
   onCreateProduct,
+  categories,
   t,
 }: Props) {
   const [showCreate, setShowCreate] = useState(false);
@@ -90,6 +92,20 @@ export default function SearchPanel({
               mode="outlined"
               style={styles.dialogInput}
             />
+            {categories.length > 0 ? (
+              <View style={styles.categoryList}>
+                {categories.map((category) => (
+                  <Chip
+                    key={category}
+                    onPress={() => setNewCategory(category)}
+                    style={styles.categoryChip}
+                    textStyle={styles.categoryChipText}
+                  >
+                    {category}
+                  </Chip>
+                ))}
+              </View>
+            ) : null}
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setShowCreate(false)}>{t('action.cancel')}</Button>
@@ -124,6 +140,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  categoryChip: {
+    backgroundColor: colors.surfaceAlt,
+  },
+  categoryChipText: {
+    color: colors.text,
+  },
+  categoryList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   dialogInput: {
     marginBottom: 12,

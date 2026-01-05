@@ -9,6 +9,7 @@ import { registerStoresRoutes } from './routes/stores';
 import { registerProfileRoutes } from './routes/profile';
 import { registerAdminRoutes } from './routes/admin';
 import { registerProductsRoutes } from './routes/products';
+import { registerCategoriesRoutes } from './routes/categories';
 
 export function createServer() {
   const server = Fastify({ logger: true });
@@ -38,6 +39,7 @@ export function createServer() {
   registerStoresRoutes(server);
   registerProfileRoutes(server);
   registerProductsRoutes(server);
+  registerCategoriesRoutes(server);
   registerAdminRoutes(server, { packs: packRepo });
 
   return server;

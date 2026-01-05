@@ -6,7 +6,7 @@ import { useHome } from '@presentation/context/HomeContext';
 import type { RootStackParamList } from '@presentation/navigation/types';
 
 export default function ListScreen() {
-  const { products, search, setSearch, createProduct, t } = useHome();
+  const { products, search, setSearch, createProduct, categories, t } = useHome();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
@@ -17,6 +17,7 @@ export default function ListScreen() {
         onSearchChange={setSearch}
         onSelect={(productId) => navigation.navigate('ProductDetail', { productId })}
         onCreateProduct={createProduct}
+        categories={categories}
         t={t}
       />
     </HomeLayout>
