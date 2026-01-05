@@ -11,12 +11,19 @@ pnpm dev:api
 pnpm dev:admin
 ```
 
+## Variables de entorno (admin)
+
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
+
 ## Flujo
 
 - La web admin consulta a la API (no a Supabase directo) para mantener seguridad.
 - Usa el selector de tienda para cargar el pack con `/pack?storeId=...`.
 - El selector se alimenta con `/stores`.
-- Necesitas un access token en el campo "Auth token" para autenticar las llamadas.
+- Inicia sesion con email/password para autenticar las llamadas.
 
 ## Notas
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
 type PackTable<T> = {
   upserts: T[];
@@ -23,6 +24,16 @@ const PRESET_APIS = {
   local: 'http://127.0.0.1:3001',
   render: 'https://speedy-basket.onrender.com',
 };
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  },
+});
 
 function readStored(key: string, fallback: string) {
   if (typeof window === 'undefined') return fallback;
@@ -33,6 +44,10 @@ export default function App() {
   const [apiBase, setApiBase] = useState(() => readStored('sb_admin_api', DEFAULT_API_BASE));
   const [storeId, setStoreId] = useState(() => readStored('sb_admin_store', '1'));
   const [authToken, setAuthToken] = useState(() => readStored('sb_admin_token', ''));
+  const [authStatus, setAuthStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [activeTab, setActiveTab] = useState<'stores' | 'zones' | 'products' | 'locations'>(
     'stores'
@@ -82,6 +97,58 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem('sb_admin_token', authToken);
   }, [authToken]);
+
+  useEffect(() => {
+    let active = true;
+    const loadSession = async () => {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        if (!active) return;
+        setAuthError('Falta configurar Supabase.');
+        return;
+      }
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+      setAuthToken(data.session?.access_token ?? '');
+    };
+    loadSession();
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      setAuthToken(session?.access_token ?? '');
+    });
+    return () => {
+      active = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogin = useCallback(async () => {
+    setAuthStatus('loading');
+    setAuthError(null);
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      setAuthStatus('error');
+      setAuthError('Falta configurar Supabase.');
+      return;
+    }
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (error) {
+      setAuthStatus('error');
+      setAuthError(error.message);
+      return;
+    }
+    setAuthStatus('idle');
+  }, [email, password]);
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setAuthToken('');
+    setAuthStatus('idle');
+    setAuthError(null);
+    setEmail('');
+    setPassword('');
+  }, []);
 
   const authHeaders = useMemo(() => {
     if (!authToken.trim()) return {};
@@ -160,26 +227,48 @@ export default function App() {
         </button>
       </header>
 
-      <div className="layout">
-        <aside className="panel sidebar">
-          <div className="row">
+      {!hasToken ? (
+        <section className="panel login">
+          <h2>Acceso</h2>
+          <p className="muted">Inicia sesion para acceder a los datos.</p>
           <label>
-            API base
+            Email
             <input
-              type="text"
-              value={apiBase}
-              onChange={(event) => setApiBase(event.target.value)}
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
             />
           </label>
           <label>
-            Auth token
+            Password
             <input
               type="password"
-              value={authToken}
-              placeholder="Supabase access token"
-              onChange={(event) => setAuthToken(event.target.value)}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
             />
           </label>
+          {authError ? <p className="error">{authError}</p> : null}
+          <button type="button" onClick={handleLogin} disabled={authStatus === 'loading'}>
+            {authStatus === 'loading' ? 'Entrando...' : 'Entrar'}
+          </button>
+        </section>
+      ) : (
+        <div className="layout">
+        <aside className="panel sidebar">
+          {hasToken ? (
+            <button type="button" className="pill" onClick={handleLogout}>
+              Cerrar sesion
+            </button>
+          ) : null}
+          <div className="row">
+            <label>
+              API base
+              <input
+                type="text"
+                value={apiBase}
+                onChange={(event) => setApiBase(event.target.value)}
+              />
+            </label>
             <div className="quick">
               <span className="muted">Accesos rapidos</span>
               <div className="pill-row">
@@ -357,6 +446,7 @@ export default function App() {
           )}
         </section>
       </div>
+      )}
     </main>
   );
 }
