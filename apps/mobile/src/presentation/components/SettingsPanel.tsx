@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { RadioButton, SegmentedButtons } from 'react-native-paper';
+import { Button, RadioButton, SegmentedButtons } from 'react-native-paper';
 import type { Language, TFunction } from '@presentation/i18n';
 import colors from '@presentation/styles/colors';
 
@@ -9,6 +9,7 @@ type Props = {
   onChangeStore: (storeId: number) => void;
   language: Language;
   onChangeLanguage: (language: Language) => void;
+  onSignOut: () => void;
   t: TFunction;
 };
 
@@ -18,6 +19,7 @@ export default function SettingsPanel({
   onChangeStore,
   language,
   onChangeLanguage,
+  onSignOut,
   t,
 }: Props) {
   return (
@@ -50,6 +52,12 @@ export default function SettingsPanel({
             />
           ))}
         </RadioButton.Group>
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.meta}>{t('settings.account')}</Text>
+        <Button mode="outlined" onPress={onSignOut}>
+          {t('settings.signOut')}
+        </Button>
       </View>
     </View>
   );

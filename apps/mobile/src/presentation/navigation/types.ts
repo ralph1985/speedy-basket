@@ -1,4 +1,5 @@
 export type RootStackParamList = {
+  Login: undefined;
   Tabs: undefined;
   ProductDetail: { productId: number };
 };

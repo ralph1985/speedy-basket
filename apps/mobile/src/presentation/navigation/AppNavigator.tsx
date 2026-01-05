@@ -10,6 +10,7 @@ import ListScreen from '@presentation/screens/ListScreen';
 import MapScreen from '@presentation/screens/MapScreen';
 import ProductDetailScreen from '@presentation/screens/ProductDetailScreen';
 import SettingsScreen from '@presentation/screens/SettingsScreen';
+import LoginScreen from '@presentation/screens/LoginScreen';
 import colors from '@presentation/styles/colors';
 import { useHome } from '@presentation/context/HomeContext';
 import type { HomeTabParamList, RootStackParamList } from './types';
@@ -110,6 +111,8 @@ const Tabs = () => {
 };
 
 export default function AppNavigator() {
+  const { isAuthenticated } = useHome();
+
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -121,7 +124,11 @@ export default function AppNavigator() {
           sheetLargestUndimmedDetent: 1,
         }}
       >
-        <Stack.Screen name="Tabs" component={Tabs} />
+        {!isAuthenticated ? (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : (
+          <Stack.Screen name="Tabs" component={Tabs} />
+        )}
         <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>

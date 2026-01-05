@@ -23,7 +23,8 @@ import {
   resetWithPack,
 } from '@domain/usecases';
 import type { PackDelta, SyncEvent } from '@shared/sync';
-import { API_BASE_URL, DEFAULT_STORE_ID } from '@app/config';
+import { API_BASE_URL, DEFAULT_STORE_ID, SUPABASE_ANON_KEY, SUPABASE_URL } from '@app/config';
+import { supabase } from '@app/supabase';
 import { createTranslator, isLanguage, type Language, type TFunction } from '@presentation/i18n';
 
 const fallbackStoreId = (pack: Pack) => pack.stores[0]?.id ?? DEFAULT_STORE_ID;
@@ -81,6 +82,11 @@ type HomeContextValue = {
   setLanguage: (language: Language) => void;
   authToken: string;
   setAuthToken: (token: string) => void;
+  authStatus: 'idle' | 'loading' | 'error';
+  authError: string | null;
+  isAuthenticated: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
   statusText: string;
   stores: { id: number; name: string }[];
   activeStoreId: number | null;
@@ -141,9 +147,14 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const [lastSyncStats, setLastSyncStats] = useState<Record<string, string> | null>(null);
   const [language, setLanguage] = useState<Language>('es');
   const [authToken, setAuthTokenState] = useState('');
+  const [authRefreshToken, setAuthRefreshToken] = useState('');
+  const [authExpiresAt, setAuthExpiresAt] = useState<number | null>(null);
+  const [authStatus, setAuthStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const t = useMemo(() => createTranslator(language), [language]);
   const statusText = t(statusKey, statusParams);
+  const isAuthenticated = authToken.trim().length > 0;
 
   const refreshDevData = useCallback(async () => {
     const counts = await loadTableCounts(repo);
@@ -196,11 +207,20 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       try {
         await initApp(repo);
         await ensurePack(repo, pack);
-        const [count, storedLanguage, storedActiveStoreId, storedToken] = await Promise.all([
+        const [
+          count,
+          storedLanguage,
+          storedActiveStoreId,
+          storedToken,
+          storedRefreshToken,
+          storedExpiresAt,
+        ] = await Promise.all([
           loadStoreCount(repo),
           repo.getMetaValue('language'),
           repo.getMetaValue('active_store_id'),
           repo.getMetaValue('auth_token'),
+          repo.getMetaValue('auth_refresh_token'),
+          repo.getMetaValue('auth_expires_at'),
         ]);
         const storeRows = await loadStores(repo);
         const parsedStoreId = storedActiveStoreId ? Number(storedActiveStoreId) : null;
@@ -218,6 +238,13 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
           }
           if (storedToken) {
             setAuthTokenState(storedToken);
+          }
+          if (storedRefreshToken) {
+            setAuthRefreshToken(storedRefreshToken);
+          }
+          if (storedExpiresAt) {
+            const parsedExpires = Number(storedExpiresAt);
+            setAuthExpiresAt(Number.isNaN(parsedExpires) ? null : parsedExpires);
           }
           if (nextStoreId) {
             repo.setMetaValue('active_store_id', `${nextStoreId}`).catch((error) => {
@@ -242,14 +269,58 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     };
   }, [pack, repo]);
 
+  const clearAuth = useCallback(async () => {
+    setAuthTokenState('');
+    setAuthRefreshToken('');
+    setAuthExpiresAt(null);
+    await Promise.all([
+      repo.setMetaValue('auth_token', ''),
+      repo.setMetaValue('auth_refresh_token', ''),
+      repo.setMetaValue('auth_expires_at', ''),
+    ]);
+  }, [repo]);
+
+  const refreshSessionIfNeeded = useCallback(async () => {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+    if (!authRefreshToken || !authExpiresAt) return;
+    const now = Math.floor(Date.now() / 1000);
+    if (authExpiresAt > now + 30) return;
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: authRefreshToken,
+    });
+    if (error || !data.session) {
+      await clearAuth();
+      return;
+    }
+    const { access_token, refresh_token, expires_at } = data.session;
+    setAuthTokenState(access_token ?? '');
+    setAuthRefreshToken(refresh_token ?? '');
+    setAuthExpiresAt(expires_at ?? null);
+    await Promise.all([
+      repo.setMetaValue('auth_token', access_token ?? ''),
+      repo.setMetaValue('auth_refresh_token', refresh_token ?? ''),
+      repo.setMetaValue('auth_expires_at', expires_at ? `${expires_at}` : ''),
+    ]);
+  }, [authExpiresAt, authRefreshToken, clearAuth, repo]);
+
   useEffect(() => {
     if (isReady) {
       refreshListData();
       refreshZones();
       refreshDevData();
       refreshSyncMeta();
+      refreshSessionIfNeeded().catch((error) => {
+        console.error('Auth refresh failed', error);
+      });
     }
-  }, [isReady, refreshDevData, refreshListData, refreshSyncMeta, refreshZones]);
+  }, [
+    isReady,
+    refreshDevData,
+    refreshListData,
+    refreshSyncMeta,
+    refreshZones,
+    refreshSessionIfNeeded,
+  ]);
 
   useEffect(() => {
     if (isReady) {
@@ -274,6 +345,41 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     },
     [repo]
   );
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      setAuthStatus('loading');
+      setAuthError(null);
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        setAuthStatus('error');
+        setAuthError(t('login.configMissing'));
+        return;
+      }
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error || !data.session) {
+        setAuthStatus('error');
+        setAuthError(error?.message ?? t('login.failed'));
+        return;
+      }
+      const { access_token, refresh_token, expires_at } = data.session;
+      setAuthTokenState(access_token ?? '');
+      setAuthRefreshToken(refresh_token ?? '');
+      setAuthExpiresAt(expires_at ?? null);
+      await Promise.all([
+        repo.setMetaValue('auth_token', access_token ?? ''),
+        repo.setMetaValue('auth_refresh_token', refresh_token ?? ''),
+        repo.setMetaValue('auth_expires_at', expires_at ? `${expires_at}` : ''),
+      ]);
+      setAuthStatus('idle');
+    },
+    [repo, t]
+  );
+
+  const signOut = useCallback(async () => {
+    await clearAuth();
+    setAuthStatus('idle');
+    setAuthError(null);
+  }, [clearAuth]);
 
   const setSearch = useCallback(
     async (value: string) => {
@@ -456,6 +562,11 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       setLanguage,
       authToken,
       setAuthToken,
+      authStatus,
+      authError,
+      isAuthenticated,
+      signIn,
+      signOut,
       statusText,
       stores,
       activeStoreId,
@@ -483,6 +594,11 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     }),
     [
       authToken,
+      authStatus,
+      authError,
+      isAuthenticated,
+      signIn,
+      signOut,
       handleReset,
       handleSync,
       isSyncing,

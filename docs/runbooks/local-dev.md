@@ -25,6 +25,7 @@
 - En Supabase, usa el Discovery URL y busca el campo `jwks_uri`.
 - En la app, pega el access token en Dev > Auth token.
 - En admin web, pega el token en el campo "Auth token".
+- En mobile, define `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 
 ### Obtener access token (password grant)
 
