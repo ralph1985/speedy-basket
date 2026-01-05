@@ -58,6 +58,11 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_zones_store_id ON zones (store_id);
+    CREATE INDEX IF NOT EXISTS idx_products_name ON products (name);
+    CREATE INDEX IF NOT EXISTS idx_product_locations_store_updated ON product_locations (store_id, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_outbox_events_sent_at ON outbox_events (sent_at);
   `);
 }
 
