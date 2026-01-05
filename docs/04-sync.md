@@ -32,7 +32,7 @@ Incluye:
 
 ## API (read)
 
-- GET /categories (auth requerida): lista categorias base + del usuario.
+- GET /categories?lang=es|en (auth requerida): lista categorias base + del usuario.
 
 ## Conflictos
 

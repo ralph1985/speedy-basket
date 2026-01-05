@@ -29,8 +29,8 @@ CREATE POLICY categories_delete ON categories
   USING (created_by = auth.uid());
 
 INSERT INTO categories (name) VALUES
-  ('Lacteos'),
-  ('Panaderia'),
+  ('Lácteos'),
+  ('Panadería'),
   ('Fruta'),
   ('Verdura'),
   ('Bebidas'),
@@ -41,5 +41,5 @@ INSERT INTO categories (name) VALUES
   ('Higiene'),
   ('Snacks'),
   ('Mascotas'),
-  ('Bebes')
+  ('Bebés')
 ON CONFLICT (name) DO NOTHING;

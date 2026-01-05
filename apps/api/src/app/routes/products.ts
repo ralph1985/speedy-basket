@@ -6,6 +6,7 @@ import { withAuthClient } from '../../infra/db/withAuth';
 const createProductSchema = z.object({
   name: z.string().trim().min(1),
   category: z.string().trim().optional().nullable(),
+  locale: z.enum(['es', 'en']).optional(),
 });
 
 export function registerProductsRoutes(server: FastifyInstance) {
@@ -20,12 +21,12 @@ export function registerProductsRoutes(server: FastifyInstance) {
         reply.code(401).send({ error: 'Unauthorized' });
         return;
       }
-      const { name, category } = createProductSchema.parse(request.body);
+      const { name, category, locale } = createProductSchema.parse(request.body);
       return withAuthClient(userId, async (client) => {
         if (category && category.trim().length > 0) {
           await client.query(
-            'INSERT INTO categories (name, created_by) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
-            [category.trim(), userId]
+            'INSERT INTO categories (name, created_by, locale) VALUES ($1, $2, $3) ON CONFLICT (locale, name) DO NOTHING',
+            [category.trim(), userId, locale ?? 'es']
           );
         }
         const result = await client.query<{

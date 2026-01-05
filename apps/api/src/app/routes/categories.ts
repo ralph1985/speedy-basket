@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 import { getAuthUserId } from '../auth';
 import { withAuthClient } from '../../infra/db/withAuth';
 
@@ -9,15 +10,20 @@ export function registerCategoriesRoutes(server: FastifyInstance) {
       reply.code(401).send({ error: 'Unauthorized' });
       return;
     }
+    const { lang } = z
+      .object({ lang: z.string().optional() })
+      .parse(request.query ?? {});
+    const locale = lang === 'en' ? 'en' : 'es';
     return withAuthClient(userId, async (client) => {
       const result = await client.query<{ id: number; name: string }>(
         `
         SELECT id, name
         FROM categories
-        WHERE created_by IS NULL OR created_by = $1
+        WHERE locale = $2
+          AND (created_by IS NULL OR created_by = $1)
         ORDER BY name ASC
         `,
-        [userId]
+        [userId, locale]
       );
       return result.rows.map((row) => ({ id: Number(row.id), name: row.name }));
     });

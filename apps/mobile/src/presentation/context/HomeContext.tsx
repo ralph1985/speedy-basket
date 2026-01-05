@@ -232,7 +232,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE_URL}/categories`, {
+      const res = await fetch(`${API_BASE_URL}/categories?lang=${language}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Failed to load categories');
@@ -242,7 +242,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       console.error('Failed to fetch categories', error);
       setCategories([]);
     }
-  }, [authToken]);
+  }, [authToken, language]);
 
   useEffect(() => {
     let mounted = true;
@@ -615,7 +615,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
         return;
       }
       try {
-        const created = await postProduct({ name, category }, token);
+        const created = await postProduct({ name, category, locale: language }, token);
         await addProduct(repo, {
           id: Number(created.id),
           name: created.name,
@@ -632,7 +632,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
         setStatusParams({ message });
       }
     },
-    [activeStoreId, authToken, refreshCategories, refreshDevData, refreshListData, repo, search]
+    [activeStoreId, authToken, language, refreshCategories, refreshDevData, refreshListData, repo, search]
   );
 
   const value = useMemo<HomeContextValue>(
