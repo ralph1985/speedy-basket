@@ -31,10 +31,16 @@ Incluye:
 
 - POST /products (auth requerida): crea producto generico (name, category?).
   - tambien crea la traduccion en el locale enviado.
+- POST /lists (auth requerida): crea cesta (name, storeId?).
+- POST /lists/:id/items (auth requerida): agrega item (productId? o label).
+- PATCH /lists/:id/items/:itemId (auth requerida): marca comprado (checked).
+- POST /lists/:id/members (auth requerida): comparte con otro usuario (userId, role).
 
 ## API (read)
 
 - GET /categories?lang=es|en (auth requerida): lista categorias base + del usuario.
+- GET /lists (auth requerida): lista cestas del usuario.
+- GET /lists/:id/items?lang=es|en (auth requerida): items con nombre traducido.
 
 ## Conflictos
 

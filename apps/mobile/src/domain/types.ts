@@ -24,6 +24,23 @@ export type StoreItem = {
   name: string;
 };
 
+export type ShoppingList = {
+  id: number;
+  name: string;
+  storeId: number | null;
+  role: string;
+};
+
+export type ShoppingListItem = {
+  id: number;
+  listId: number;
+  productId: number | null;
+  label: string;
+  qty: string | null;
+  checked: boolean;
+  productName: string | null;
+};
+
 export type OutboxEventItem = {
   id: OutboxEvent['id'];
   type: OutboxEvent['type'];

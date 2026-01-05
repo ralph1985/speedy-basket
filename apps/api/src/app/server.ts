@@ -10,6 +10,7 @@ import { registerProfileRoutes } from './routes/profile';
 import { registerAdminRoutes } from './routes/admin';
 import { registerProductsRoutes } from './routes/products';
 import { registerCategoriesRoutes } from './routes/categories';
+import { registerListsRoutes } from './routes/lists';
 
 export function createServer() {
   const server = Fastify({ logger: true });
@@ -40,6 +41,7 @@ export function createServer() {
   registerProfileRoutes(server);
   registerProductsRoutes(server);
   registerCategoriesRoutes(server);
+  registerListsRoutes(server);
   registerAdminRoutes(server, { packs: packRepo });
 
   return server;
