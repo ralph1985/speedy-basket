@@ -78,6 +78,27 @@ export function AdminDashboard({
     return pack.zones.upserts.filter((zone) => zone.store_id === parsedStoreId);
   }, [pack, parsedStoreId]);
 
+  const zoneNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const zone of filteredZones) {
+      map.set(zone.id, zone.name);
+    }
+    return map;
+  }, [filteredZones]);
+
+  const productZoneById = useMemo(() => {
+    if (!pack || !parsedStoreId) return new Map<number, string>();
+    const map = new Map<number, string>();
+    for (const location of pack.product_locations.upserts) {
+      if (location.store_id !== parsedStoreId) continue;
+      const zoneLabel = location.zone_id ? zoneNameById.get(location.zone_id) : null;
+      if (zoneLabel) {
+        map.set(location.product_id, zoneLabel);
+      }
+    }
+    return map;
+  }, [pack, parsedStoreId, zoneNameById]);
+
   const filteredLocations = useMemo(() => {
     if (!pack || !parsedStoreId) return [];
     return pack.product_locations.upserts.filter((row) => row.store_id === parsedStoreId);
@@ -370,7 +391,9 @@ export function AdminDashboard({
                 <RowItem
                   key={product.id}
                   title={formatProductLabel(product.id, product.name)}
-                  meta={`#${product.id}${product.category ? ` · ${product.category}` : ''}`}
+                  meta={`#${product.id}${
+                    product.category ? ` · ${product.category}` : ''
+                  } · zona ${productZoneById.get(product.id) ?? 'sin zona'}`}
                 />
               ))}
               {pack && filteredProducts.length === 0 && (
@@ -387,9 +410,9 @@ export function AdminDashboard({
               <RowItem
                 key={`${location.product_id}-${location.store_id}`}
                 title={formatProductLabel(location.product_id, `Producto ${location.product_id}`)}
-                meta={`store ${location.store_id} · zone ${location.zone_id ?? '-'} · conf ${
-                  location.confidence ?? '-'
-                }`}
+                meta={`zona ${
+                  location.zone_id ? zoneNameById.get(location.zone_id) ?? location.zone_id : '-'
+                } · conf ${location.confidence ?? '-'}`}
               />
             ))}
             {pack && filteredLocations.length === 0 && (
