@@ -25,6 +25,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b8ac149c-79a4-48f5-96d2-0afd8133acb6"
+      }
+    },
+    "owner": "rafaelgarcia1985s-organization"
   }
 }
