@@ -1,5 +1,12 @@
 import * as SQLite from 'expo-sqlite';
-import type { OutboxEventItem, Pack, ProductDetail, ProductListItem, ZoneItem } from '@domain/types';
+import type {
+  OutboxEventItem,
+  Pack,
+  ProductDetail,
+  ProductListItem,
+  StoreItem,
+  ZoneItem,
+} from '@domain/types';
 import type { EventType } from '@shared/types';
 import type { PackDelta } from '@shared/sync';
 
@@ -73,6 +80,10 @@ export async function getStoreCount(db: SQLite.SQLiteDatabase) {
   return row?.count ?? 0;
 }
 
+export async function listStores(db: SQLite.SQLiteDatabase) {
+  return db.getAllAsync<StoreItem>('SELECT id, name FROM stores ORDER BY name ASC');
+}
+
 export async function getMetaValue(db: SQLite.SQLiteDatabase, key: string) {
   const row = await db.getFirstAsync<{ value: string }>(
     'SELECT value FROM app_meta WHERE key = ?',
@@ -134,33 +145,40 @@ export async function importPackIfNeeded(db: SQLite.SQLiteDatabase, pack: Pack) 
   return importPack(db, pack, false);
 }
 
-export async function listProducts(db: SQLite.SQLiteDatabase, search = '') {
+export async function listProducts(db: SQLite.SQLiteDatabase, search = '', storeId: number) {
   const pattern = `%${search.toLowerCase()}%`;
   const rows = await db.getAllAsync<ProductListItem>(
     `SELECT p.id, p.name, z.name as zoneName
      FROM products p
-     LEFT JOIN product_locations pl ON pl.product_id = p.id
+     LEFT JOIN product_locations pl ON pl.product_id = p.id AND pl.store_id = ?
      LEFT JOIN zones z ON z.id = pl.zone_id
      WHERE LOWER(p.name) LIKE ?
      ORDER BY p.name ASC`,
-    [pattern]
+    [storeId, pattern]
   );
   return rows;
 }
 
-export async function getProductDetail(db: SQLite.SQLiteDatabase, productId: number) {
+export async function getProductDetail(
+  db: SQLite.SQLiteDatabase,
+  productId: number,
+  storeId: number
+) {
   return db.getFirstAsync<ProductDetail>(
     `SELECT p.id, p.name, p.brand, p.category, pl.zone_id as zoneId, z.name as zoneName
      FROM products p
-     LEFT JOIN product_locations pl ON pl.product_id = p.id
+     LEFT JOIN product_locations pl ON pl.product_id = p.id AND pl.store_id = ?
      LEFT JOIN zones z ON z.id = pl.zone_id
      WHERE p.id = ?`,
-    [productId]
+    [storeId, productId]
   );
 }
 
-export async function listZones(db: SQLite.SQLiteDatabase) {
-  return db.getAllAsync<ZoneItem>('SELECT id, name FROM zones ORDER BY id ASC');
+export async function listZones(db: SQLite.SQLiteDatabase, storeId: number) {
+  return db.getAllAsync<ZoneItem>(
+    'SELECT id, name FROM zones WHERE store_id = ? ORDER BY id ASC',
+    [storeId]
+  );
 }
 
 export async function createOutboxEvent(

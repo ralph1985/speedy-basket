@@ -5,6 +5,7 @@ import type {
   ProductListItem,
   TableCounts,
   ZoneItem,
+  StoreItem,
 } from './types';
 import type { EventType } from '@shared/types';
 import type { PackDelta } from '@shared/sync';
@@ -12,9 +13,10 @@ import type { PackDelta } from '@shared/sync';
 export interface AppRepository {
   init(): Promise<void>;
   getStoreCount(): Promise<number>;
-  listProducts(search: string): Promise<ProductListItem[]>;
-  listZones(): Promise<ZoneItem[]>;
-  getProductDetail(productId: number): Promise<ProductDetail | null>;
+  listStores(): Promise<StoreItem[]>;
+  listProducts(search: string, storeId: number): Promise<ProductListItem[]>;
+  listZones(storeId: number): Promise<ZoneItem[]>;
+  getProductDetail(productId: number, storeId: number): Promise<ProductDetail | null>;
   createOutboxEvent(type: EventType, payload: Record<string, unknown>): Promise<string>;
   listOutboxEvents(limit: number): Promise<OutboxEventItem[]>;
   listPendingOutboxEvents(limit: number): Promise<OutboxEventItem[]>;

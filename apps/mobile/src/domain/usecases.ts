@@ -10,16 +10,20 @@ export async function loadStoreCount(repo: AppRepository) {
   return repo.getStoreCount();
 }
 
-export async function loadProducts(repo: AppRepository, search = '') {
-  return repo.listProducts(search);
+export async function loadStores(repo: AppRepository) {
+  return repo.listStores();
 }
 
-export async function loadZones(repo: AppRepository) {
-  return repo.listZones();
+export async function loadProducts(repo: AppRepository, search = '', storeId: number) {
+  return repo.listProducts(search, storeId);
 }
 
-export async function loadProductDetail(repo: AppRepository, productId: number) {
-  return repo.getProductDetail(productId);
+export async function loadZones(repo: AppRepository, storeId: number) {
+  return repo.listZones(storeId);
+}
+
+export async function loadProductDetail(repo: AppRepository, productId: number, storeId: number) {
+  return repo.getProductDetail(productId, storeId);
 }
 
 export async function recordOutboxEvent(

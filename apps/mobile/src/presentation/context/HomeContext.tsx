@@ -15,6 +15,7 @@ import {
   loadPendingOutboxEvents,
   loadProductDetail,
   loadProducts,
+  loadStores,
   loadStoreCount,
   loadTableCounts,
   loadZones,
@@ -25,7 +26,7 @@ import type { PackDelta, SyncEvent } from '@shared/sync';
 import { API_BASE_URL, DEFAULT_STORE_ID } from '@app/config';
 import { createTranslator, isLanguage, type Language, type TFunction } from '@presentation/i18n';
 
-const defaultStoreId = (pack: Pack) => pack.stores[0]?.id ?? DEFAULT_STORE_ID;
+const fallbackStoreId = (pack: Pack) => pack.stores[0]?.id ?? DEFAULT_STORE_ID;
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
@@ -69,6 +70,9 @@ type HomeContextValue = {
   language: Language;
   setLanguage: (language: Language) => void;
   statusText: string;
+  stores: { id: number; name: string }[];
+  activeStoreId: number | null;
+  setActiveStoreId: (storeId: number) => void;
   storeCount: number | null;
   products: ProductListItem[];
   search: string;
@@ -109,6 +113,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const [statusKey, setStatusKey] = useState('status.initializing');
   const [statusParams, setStatusParams] = useState<Record<string, string | number>>({});
   const [storeCount, setStoreCount] = useState<number | null>(null);
+  const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
+  const [activeStoreId, setActiveStoreIdState] = useState<number | null>(null);
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [search, setSearchValue] = useState('');
   const [zones, setZones] = useState<ZoneItem[]>([]);
@@ -154,17 +160,22 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   }, [repo]);
 
   const refreshListData = useCallback(
-    async (value = search) => {
-      const rows = await loadProducts(repo, value);
+    async (value = search, storeId = activeStoreId) => {
+      if (!storeId) return;
+      const rows = await loadProducts(repo, value, storeId);
       setProducts(rows);
     },
-    [repo, search]
+    [activeStoreId, repo, search]
   );
 
-  const refreshZones = useCallback(async () => {
-    const rows = await loadZones(repo);
-    setZones(rows);
-  }, [repo]);
+  const refreshZones = useCallback(
+    async (storeId = activeStoreId) => {
+      if (!storeId) return;
+      const rows = await loadZones(repo, storeId);
+      setZones(rows);
+    },
+    [activeStoreId, repo]
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -172,14 +183,29 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       try {
         await initApp(repo);
         await ensurePack(repo, pack);
-        const [count, storedLanguage] = await Promise.all([
+        const [count, storedLanguage, storedActiveStoreId] = await Promise.all([
           loadStoreCount(repo),
           repo.getMetaValue('language'),
+          repo.getMetaValue('active_store_id'),
         ]);
+        const storeRows = await loadStores(repo);
+        const parsedStoreId = storedActiveStoreId ? Number(storedActiveStoreId) : null;
+        const availableStoreIds = new Set(storeRows.map((store) => store.id));
+        const nextStoreId =
+          (parsedStoreId && availableStoreIds.has(parsedStoreId) && parsedStoreId) ||
+          storeRows[0]?.id ||
+          fallbackStoreId(pack);
         if (mounted) {
           setStoreCount(count);
+          setStores(storeRows);
+          setActiveStoreIdState(nextStoreId);
           if (isLanguage(storedLanguage)) {
             setLanguage(storedLanguage);
+          }
+          if (nextStoreId) {
+            repo.setMetaValue('active_store_id', `${nextStoreId}`).catch((error) => {
+              console.error('Failed to persist active store', error);
+            });
           }
           setStatusKey('status.sqliteReady');
           setStatusParams({});
@@ -210,6 +236,13 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
 
   useEffect(() => {
     if (isReady) {
+      refreshListData();
+      refreshZones();
+    }
+  }, [activeStoreId, isReady, refreshListData, refreshZones]);
+
+  useEffect(() => {
+    if (isReady) {
       repo.setMetaValue('language', language).catch((error) => {
         console.error('Failed to persist language', error);
       });
@@ -222,6 +255,16 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       await refreshListData(value);
     },
     [refreshListData]
+  );
+
+  const setActiveStoreId = useCallback(
+    async (storeId: number) => {
+      setActiveStoreIdState(storeId);
+      await repo.setMetaValue('active_store_id', `${storeId}`);
+      await refreshListData(search, storeId);
+      await refreshZones(storeId);
+    },
+    [refreshListData, refreshZones, repo, search]
   );
 
   const handleReset = useCallback(async () => {
@@ -240,7 +283,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       setStatusKey('status.syncing');
       setStatusParams({});
       await repo.setMetaValue('sync_last_attempt', new Date().toISOString());
-      const storeId = defaultStoreId(pack);
+      const storeId = activeStoreId ?? fallbackStoreId(pack);
       let accepted = 0;
       let hasChanges = false;
       const syncStartedAt = Date.now();
@@ -331,27 +374,38 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     } finally {
       setIsSyncing(false);
     }
-  }, [isSyncing, pack, refreshDevData, refreshListData, refreshSyncMeta, refreshZones, repo]);
+  }, [
+    activeStoreId,
+    isSyncing,
+    pack,
+    refreshDevData,
+    refreshListData,
+    refreshSyncMeta,
+    refreshZones,
+    repo,
+  ]);
 
   const loadDetail = useCallback(
     async (productId: number) => {
-      return loadProductDetail(repo, productId);
+      const storeId = activeStoreId ?? fallbackStoreId(pack);
+      return loadProductDetail(repo, productId, storeId);
     },
-    [repo]
+    [activeStoreId, pack, repo]
   );
 
   const recordEvent = useCallback(
     async (detail: ProductDetail, type: 'FOUND' | 'NOT_FOUND') => {
+      const storeId = activeStoreId ?? fallbackStoreId(pack);
       await recordOutboxEvent(repo, type, {
         productId: detail.id,
-        storeId: defaultStoreId(pack),
+        storeId,
         zoneId: detail.zoneId ?? null,
       });
       setStatusKey('status.eventSaved');
       setStatusParams({ type: t(`eventType.${type}`) });
       refreshDevData();
     },
-    [pack, refreshDevData, repo, t]
+    [activeStoreId, pack, refreshDevData, repo, t]
   );
 
   const value = useMemo<HomeContextValue>(
@@ -360,6 +414,9 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       language,
       setLanguage,
       statusText,
+      stores,
+      activeStoreId,
+      setActiveStoreId,
       storeCount,
       products,
       search,
@@ -400,6 +457,9 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       selectedZoneId,
       setSearch,
       statusText,
+      stores,
+      activeStoreId,
+      setActiveStoreId,
       storeCount,
       t,
       tableCounts,

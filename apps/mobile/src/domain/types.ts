@@ -20,6 +20,11 @@ export type ZoneItem = {
   name: string;
 };
 
+export type StoreItem = {
+  id: number;
+  name: string;
+};
+
 export type OutboxEventItem = {
   id: OutboxEvent['id'];
   type: OutboxEvent['type'];

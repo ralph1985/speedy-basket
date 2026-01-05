@@ -1,15 +1,25 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { SegmentedButtons } from 'react-native-paper';
+import { RadioButton, SegmentedButtons } from 'react-native-paper';
 import type { Language, TFunction } from '@presentation/i18n';
 import colors from '@presentation/styles/colors';
 
 type Props = {
+  stores: Array<{ id: number; name: string }>;
+  activeStoreId: number | null;
+  onChangeStore: (storeId: number) => void;
   language: Language;
   onChangeLanguage: (language: Language) => void;
   t: TFunction;
 };
 
-export default function SettingsPanel({ language, onChangeLanguage, t }: Props) {
+export default function SettingsPanel({
+  stores,
+  activeStoreId,
+  onChangeStore,
+  language,
+  onChangeLanguage,
+  t,
+}: Props) {
   return (
     <View style={styles.panel}>
       <Text style={styles.title}>{t('settings.title')}</Text>
@@ -23,6 +33,23 @@ export default function SettingsPanel({ language, onChangeLanguage, t }: Props) 
             { value: 'en', label: t('language.en') },
           ]}
         />
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.meta}>{t('settings.store')}</Text>
+        <RadioButton.Group
+          value={activeStoreId ? `${activeStoreId}` : ''}
+          onValueChange={(value) => {
+            if (value) onChangeStore(Number(value));
+          }}
+        >
+          {stores.map((store) => (
+            <RadioButton.Item
+              key={store.id}
+              label={store.name}
+              value={`${store.id}`}
+            />
+          ))}
+        </RadioButton.Group>
       </View>
     </View>
   );

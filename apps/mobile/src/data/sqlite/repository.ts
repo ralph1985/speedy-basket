@@ -16,6 +16,7 @@ import {
   listOutboxEvents,
   listPendingOutboxEvents,
   listProducts,
+  listStores,
   listZones,
   openDatabase,
   markOutboxEventsSent,
@@ -35,16 +36,20 @@ export class SqliteRepository implements AppRepository {
     return getStoreCount(this.requireDb());
   }
 
-  async listProducts(search: string) {
-    return listProducts(this.requireDb(), search);
+  async listStores() {
+    return listStores(this.requireDb());
   }
 
-  async listZones() {
-    return listZones(this.requireDb());
+  async listProducts(search: string, storeId: number) {
+    return listProducts(this.requireDb(), search, storeId);
   }
 
-  async getProductDetail(productId: number) {
-    return getProductDetail(this.requireDb(), productId);
+  async listZones(storeId: number) {
+    return listZones(this.requireDb(), storeId);
+  }
+
+  async getProductDetail(productId: number, storeId: number) {
+    return getProductDetail(this.requireDb(), productId, storeId);
   }
 
   async createOutboxEvent(type: EventType, payload: Record<string, unknown>) {
