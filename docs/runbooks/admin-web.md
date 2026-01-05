@@ -23,6 +23,7 @@ VITE_SUPABASE_ANON_KEY=...
 - La web admin consulta a la API (no a Supabase directo) para mantener seguridad.
 - Usa el selector de tienda para cargar el pack con `/admin/pack?storeId=...`.
 - El selector se alimenta con `/admin/stores`.
+- El listado de usuarios y roles usa `/admin/users`.
 - Inicia sesion con email/password para autenticar las llamadas.
 - Solo usuarios con rol `admin_god` pueden usar esta web.
 

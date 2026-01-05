@@ -60,4 +60,31 @@ export function registerAdminRoutes(server: FastifyInstance, deps: { packs: Pack
     const { storeId, since } = packQuerySchema.parse(request.query);
     return getPackDelta(deps.packs, storeId, userId, since);
   });
+
+  server.get('/admin/users', async (request, reply) => {
+    const userId = await requireAdminGod(request, reply);
+    if (!userId) return;
+    return withAuthClient(userId, async (client) => {
+      const result = await client.query<{
+        id: string;
+        email: string | null;
+        display_name: string | null;
+        created_at: string | null;
+        roles: Array<{ key: string; store_id: number | null; scope: string }> | string | null;
+      }>('SELECT * FROM list_admin_users()');
+
+      return result.rows.map((row) => ({
+        id: row.id,
+        email: row.email,
+        display_name: row.display_name,
+        created_at: row.created_at,
+        roles:
+          typeof row.roles === 'string'
+            ? (JSON.parse(row.roles) as Array<{ key: string; store_id: number | null; scope: string }>)
+            : Array.isArray(row.roles)
+              ? row.roles
+              : [],
+      }));
+    });
+  });
 }

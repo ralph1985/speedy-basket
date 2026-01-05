@@ -139,6 +139,26 @@ button:disabled {
   align-items: center;
 }
 
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.roles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.role {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid #d9d4cd;
+  background: #fff;
+}
+
 .quick {
   display: flex;
   flex-direction: column;

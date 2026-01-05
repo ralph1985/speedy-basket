@@ -19,6 +19,15 @@ type Pack = {
   }>;
 };
 
+type UserRole = { key: string; store_id: number | null; scope: string };
+type UserRow = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  created_at: string;
+  roles: UserRole[];
+};
+
 const DEFAULT_API_BASE = 'http://127.0.0.1:3001';
 const PRESET_APIS = {
   local: 'http://127.0.0.1:3001',
@@ -49,13 +58,17 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
-  const [activeTab, setActiveTab] = useState<'stores' | 'zones' | 'products' | 'locations'>(
-    'stores'
-  );
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [usersStatus, setUsersStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<
+    'stores' | 'zones' | 'products' | 'locations' | 'users'
+  >('stores');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [pack, setPack] = useState<Pack | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
   const hasToken = authToken.trim().length > 0;
 
   const counts = useMemo(() => {
@@ -183,7 +196,40 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [apiBase, authHeaders, hasToken, storeId]);
+  }, [apiBase, authHeaders, hasToken, storeId, refreshTick]);
+
+  useEffect(() => {
+    let active = true;
+    const loadUsers = async () => {
+      try {
+        if (!hasToken) {
+          setUsers([]);
+          setUsersStatus('error');
+          setUsersError('Auth token requerido.');
+          return;
+        }
+        setUsersStatus('loading');
+        setUsersError(null);
+        const res = await fetch(`${apiBase}/admin/users`, { headers: authHeaders });
+        if (!res.ok) {
+          throw new Error(`Failed to load users (${res.status})`);
+        }
+        const data = (await res.json()) as UserRow[];
+        if (!active) return;
+        setUsers(data);
+        setUsersStatus('idle');
+      } catch (err) {
+        if (!active) return;
+        setUsers([]);
+        setUsersStatus('error');
+        setUsersError(err instanceof Error ? err.message : 'Unknown error');
+      }
+    };
+    loadUsers();
+    return () => {
+      active = false;
+    };
+  }, [apiBase, authHeaders, hasToken, refreshTick]);
 
   const handleLoad = useCallback(async () => {
     if (!storeId) return;
@@ -210,6 +256,11 @@ export default function App() {
     }
   }, [apiBase, authHeaders, hasToken, storeId]);
 
+  const handleRefresh = useCallback(() => {
+    setRefreshTick((prev) => prev + 1);
+    handleLoad();
+  }, [handleLoad]);
+
   useEffect(() => {
     if (!storeId) return;
     handleLoad();
@@ -222,7 +273,7 @@ export default function App() {
           <h1>Speedy Basket Admin</h1>
           <p>Consulta rapida del estado de la BD via API.</p>
         </div>
-        <button type="button" onClick={handleLoad} disabled={status === 'loading'}>
+        <button type="button" onClick={handleRefresh} disabled={status === 'loading'}>
           {status === 'loading' ? 'Cargando...' : 'Refrescar'}
         </button>
       </header>
@@ -361,13 +412,14 @@ export default function App() {
               { key: 'zones', label: 'Zones' },
               { key: 'products', label: 'Products' },
               { key: 'locations', label: 'Locations' },
+              { key: 'users', label: 'Usuarios' },
             ].map((tab) => (
               <button
                 key={tab.key}
                 type="button"
                 className={activeTab === tab.key ? 'tab active' : 'tab'}
                 onClick={() =>
-                  setActiveTab(tab.key as 'stores' | 'zones' | 'products' | 'locations')
+                  setActiveTab(tab.key as 'stores' | 'zones' | 'products' | 'locations' | 'users')
                 }
               >
                 {tab.label}
@@ -387,10 +439,17 @@ export default function App() {
                 />
               </label>
             )}
-            {activeTab !== 'products' && <span className="muted">Filtro rapido por store activo.</span>}
+            {activeTab !== 'products' && activeTab !== 'users' && (
+              <span className="muted">Filtro rapido por store activo.</span>
+            )}
+            {activeTab === 'users' && (
+              <span className="muted">Usuarios registrados con roles asignados.</span>
+            )}
           </div>
 
-          {!pack && <p className="muted">Carga un pack para ver el detalle.</p>}
+          {!pack && activeTab !== 'users' && (
+            <p className="muted">Carga un pack para ver el detalle.</p>
+          )}
 
           {pack && activeTab === 'stores' && (
             <div className="list">
@@ -442,6 +501,34 @@ export default function App() {
                 </div>
               ))}
               {filteredLocations.length === 0 && <p className="muted">Sin ubicaciones.</p>}
+            </div>
+          )}
+
+          {activeTab === 'users' && (
+            <div className="list">
+              {usersStatus === 'loading' && <p className="muted">Cargando usuarios...</p>}
+              {usersStatus === 'error' && usersError && <p className="error">{usersError}</p>}
+              {usersStatus === 'idle' && users.length === 0 && (
+                <p className="muted">Sin usuarios.</p>
+              )}
+              {users.map((user) => (
+                <div key={user.id} className="row-item">
+                  <div className="stack">
+                    <strong>{user.display_name?.trim() || 'Sin nombre'}</strong>
+                    <span className="muted">{user.email ?? 'Sin email'}</span>
+                    <span className="muted">{user.id}</span>
+                  </div>
+                  <div className="roles">
+                    {user.roles.length === 0 && <span className="muted">Sin roles</span>}
+                    {user.roles.map((role) => (
+                      <span key={`${user.id}-${role.key}-${role.store_id ?? 'global'}`} className="pill role">
+                        {role.key}
+                        {role.store_id ? ` · tienda ${role.store_id}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </section>
