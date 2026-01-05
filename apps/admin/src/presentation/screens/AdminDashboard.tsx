@@ -72,11 +72,6 @@ export function AdminDashboard({
   const [activeTab, setActiveTab] = useState<TabKey>('store');
   const [search, setSearch] = useState('');
   const isStoreScope = activeTab === 'store' || activeTab === 'zones' || activeTab === 'locations';
-  const locale =
-    typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en')
-      ? 'en'
-      : 'es';
-
   const parsedStoreId = Number(storeId);
   const filteredZones = useMemo(() => {
     if (!pack || !parsedStoreId) return [];
@@ -92,22 +87,41 @@ export function AdminDashboard({
     if (!pack) return new Map<number, string>();
     const names = new Map<number, string>();
     for (const translation of pack.product_translations.upserts) {
-      if (translation.locale === locale) {
+      if (translation.locale === 'es') {
         names.set(translation.product_id, translation.name);
       }
     }
     return names;
-  }, [locale, pack]);
+  }, [pack]);
+
+  const productNamesEn = useMemo(() => {
+    if (!pack) return new Map<number, string>();
+    const names = new Map<number, string>();
+    for (const translation of pack.product_translations.upserts) {
+      if (translation.locale === 'en') {
+        names.set(translation.product_id, translation.name);
+      }
+    }
+    return names;
+  }, [pack]);
+
+  const formatProductLabel = useMemo(() => {
+    return (productId: number, fallbackName: string) => {
+      const esName = productNames.get(productId) ?? fallbackName;
+      const enName = productNamesEn.get(productId) ?? '-';
+      return `${esName} / ${enName}`;
+    };
+  }, [productNames, productNamesEn]);
 
   const filteredProducts = useMemo(() => {
     if (!pack) return [];
     const term = search.trim().toLowerCase();
     if (!term) return pack.products.upserts;
     return pack.products.upserts.filter((product) => {
-      const displayName = productNames.get(product.id) ?? product.name;
+      const displayName = formatProductLabel(product.id, product.name);
       return displayName.toLowerCase().includes(term);
     });
-  }, [pack, productNames, search]);
+  }, [pack, formatProductLabel, search]);
 
   const counts = useMemo(() => {
     if (!pack) return null;
@@ -355,7 +369,7 @@ export function AdminDashboard({
               {filteredProducts.map((product) => (
                 <RowItem
                   key={product.id}
-                  title={productNames.get(product.id) ?? product.name}
+                  title={formatProductLabel(product.id, product.name)}
                   meta={`#${product.id}${product.category ? ` · ${product.category}` : ''}`}
                 />
               ))}
@@ -372,7 +386,7 @@ export function AdminDashboard({
             {filteredLocations.map((location) => (
               <RowItem
                 key={`${location.product_id}-${location.store_id}`}
-                title={productNames.get(location.product_id) ?? `Producto ${location.product_id}`}
+                title={formatProductLabel(location.product_id, `Producto ${location.product_id}`)}
                 meta={`store ${location.store_id} · zone ${location.zone_id ?? '-'} · conf ${
                   location.confidence ?? '-'
                 }`}
