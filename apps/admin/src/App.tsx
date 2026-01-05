@@ -1,4 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Badge,
+  Box,
+  Button,
+  Divider,
+  Flex,
+  Heading,
+  HStack,
+  Input,
+  Select,
+  SimpleGrid,
+  Spinner,
+  Stack,
+  Text,
+  VStack,
+} from '@chakra-ui/react';
 import { createClient } from '@supabase/supabase-js';
 
 type PackTable<T> = {
@@ -20,6 +36,7 @@ type Pack = {
 };
 
 type UserRole = { key: string; store_id: number | null; scope: string };
+
 type UserRow = {
   id: string;
   email: string | null;
@@ -27,6 +44,10 @@ type UserRow = {
   created_at: string;
   roles: UserRole[];
 };
+
+type TabKey = 'overview' | 'stores' | 'zones' | 'products' | 'locations' | 'users';
+
+type NavItem = { key: TabKey; label: string; description: string };
 
 const DEFAULT_API_BASE = 'http://127.0.0.1:3001';
 const PRESET_APIS = {
@@ -43,6 +64,39 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     detectSessionInUrl: false,
   },
 });
+
+const navItems: NavItem[] = [
+  {
+    key: 'overview',
+    label: 'Resumen',
+    description: 'Estado general y conteos.',
+  },
+  {
+    key: 'stores',
+    label: 'Tiendas',
+    description: 'Listado completo de tiendas.',
+  },
+  {
+    key: 'zones',
+    label: 'Zonas',
+    description: 'Zonas asociadas al store activo.',
+  },
+  {
+    key: 'products',
+    label: 'Productos',
+    description: 'Catalogo disponible por busqueda.',
+  },
+  {
+    key: 'locations',
+    label: 'Ubicaciones',
+    description: 'Relaciones producto-zona.',
+  },
+  {
+    key: 'users',
+    label: 'Usuarios',
+    description: 'Roles y accesos asignados.',
+  },
+];
 
 function readStored(key: string, fallback: string) {
   if (typeof window === 'undefined') return fallback;
@@ -61,9 +115,7 @@ export default function App() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersStatus, setUsersStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [usersError, setUsersError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<
-    'stores' | 'zones' | 'products' | 'locations' | 'users'
-  >('stores');
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -266,274 +318,491 @@ export default function App() {
     handleLoad();
   }, [handleLoad, storeId]);
 
+  if (!hasToken) {
+    return (
+      <Flex minH="100vh" bg="radial-gradient(circle at top, #2b3446, #0f1117)" p={6}>
+        <Flex flex="1" align="center" justify="center">
+          <Box
+            w="full"
+            maxW="420px"
+            bg="rgba(255,255,255,0.06)"
+            border="1px solid rgba(255,255,255,0.12)"
+            borderRadius="24px"
+            p={8}
+            color="#f5f5f5"
+            boxShadow="0 24px 60px rgba(0,0,0,0.35)"
+          >
+            <VStack align="stretch" spacing={5}>
+              <Box>
+                <Text fontSize="sm" letterSpacing="0.18em" color="#9aa6bf">
+                  SPEEDY BASKET
+                </Text>
+                <Heading size="lg" mt={2}>
+                  Control de la fuente de la verdad
+                </Heading>
+                <Text mt={2} color="#cbd5f5">
+                  Accede con tu cuenta para revisar tiendas, packs y usuarios.
+                </Text>
+              </Box>
+              <Divider borderColor="rgba(255,255,255,0.1)" />
+              <Stack spacing={4}>
+                <Box>
+                  <Text fontSize="sm" color="#9aa6bf">
+                    Email
+                  </Text>
+                  <Input
+                    mt={2}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="tu@email.com"
+                    bg="rgba(15,18,26,0.8)"
+                    borderColor="rgba(255,255,255,0.12)"
+                    color="#eef1ff"
+                    _placeholder={{ color: '#64748b' }}
+                  />
+                </Box>
+                <Box>
+                  <Text fontSize="sm" color="#9aa6bf">
+                    Password
+                  </Text>
+                  <Input
+                    mt={2}
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    bg="rgba(15,18,26,0.8)"
+                    borderColor="rgba(255,255,255,0.12)"
+                    color="#eef1ff"
+                    _placeholder={{ color: '#64748b' }}
+                  />
+                </Box>
+                {authError ? (
+                  <Text color="#fca5a5" fontSize="sm">
+                    {authError}
+                  </Text>
+                ) : null}
+                <Button
+                  onClick={handleLogin}
+                  isDisabled={authStatus === 'loading'}
+                  bg="#f8b26a"
+                  color="#1f232b"
+                  _hover={{ bg: '#ffd2a1' }}
+                >
+                  {authStatus === 'loading' ? 'Entrando...' : 'Entrar'}
+                </Button>
+              </Stack>
+            </VStack>
+          </Box>
+        </Flex>
+      </Flex>
+    );
+  }
+
   return (
-    <main className="container">
-      <header className="header">
-        <div>
-          <h1>Speedy Basket Admin</h1>
-          <p>Consulta rapida del estado de la BD via API.</p>
-        </div>
-        <button type="button" onClick={handleRefresh} disabled={status === 'loading'}>
-          {status === 'loading' ? 'Cargando...' : 'Refrescar'}
-        </button>
-      </header>
+    <Flex minH="100vh" bg="#0f1117" color="#eef1ff" p={6} gap={6}>
+      <Box
+        w="280px"
+        bg="rgba(255,255,255,0.05)"
+        border="1px solid rgba(255,255,255,0.08)"
+        borderRadius="24px"
+        p={5}
+        position="sticky"
+        top={6}
+        height="calc(100vh - 48px)"
+        display="flex"
+        flexDirection="column"
+        gap={5}
+      >
+        <Box>
+          <Text fontSize="xs" letterSpacing="0.2em" color="#94a3b8">
+            SPEEDY BASKET
+          </Text>
+          <Heading size="md" mt={2}>
+            Admin Deck
+          </Heading>
+          <Text fontSize="sm" color="#9aa6bf" mt={1}>
+            Ruta rapida a los datos que mandan.
+          </Text>
+        </Box>
 
-      {!hasToken ? (
-        <section className="panel login">
-          <h2>Acceso</h2>
-          <p className="muted">Inicia sesion para acceder a los datos.</p>
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </label>
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          {authError ? <p className="error">{authError}</p> : null}
-          <button type="button" onClick={handleLogin} disabled={authStatus === 'loading'}>
-            {authStatus === 'loading' ? 'Entrando...' : 'Entrar'}
-          </button>
-        </section>
-      ) : (
-        <div className="layout">
-        <aside className="panel sidebar">
-          {hasToken ? (
-            <button type="button" className="pill" onClick={handleLogout}>
-              Cerrar sesion
-            </button>
-          ) : null}
-          <div className="row">
-            <label>
+        <VStack align="stretch" spacing={2}>
+          {navItems.map((item) => (
+            <Button
+              key={item.key}
+              justifyContent="flex-start"
+              variant="ghost"
+              bg={activeTab === item.key ? 'rgba(248,178,106,0.18)' : 'transparent'}
+              border={activeTab === item.key ? '1px solid rgba(248,178,106,0.4)' : '1px solid transparent'}
+              color={activeTab === item.key ? '#ffd7ad' : '#cbd5f5'}
+              fontWeight={600}
+              onClick={() => setActiveTab(item.key)}
+              _hover={{ bg: 'rgba(248,178,106,0.12)' }}
+            >
+              <Box textAlign="left">
+                <Text fontSize="sm">{item.label}</Text>
+                <Text fontSize="xs" color="#9aa6bf">
+                  {item.description}
+                </Text>
+              </Box>
+            </Button>
+          ))}
+        </VStack>
+
+        <Divider borderColor="rgba(255,255,255,0.08)" />
+
+        <VStack align="stretch" spacing={4}>
+          <Box>
+            <Text fontSize="xs" color="#9aa6bf">
               API base
-              <input
-                type="text"
-                value={apiBase}
-                onChange={(event) => setApiBase(event.target.value)}
-              />
-            </label>
-            <div className="quick">
-              <span className="muted">Accesos rapidos</span>
-              <div className="pill-row">
-                <button
-                  type="button"
-                  className="pill"
-                  onClick={() => setApiBase(PRESET_APIS.local)}
-                >
-                  Local
-                </button>
-                <button
-                  type="button"
-                  className="pill"
-                  onClick={() => setApiBase(PRESET_APIS.render)}
-                >
-                  Render
-                </button>
-              </div>
-            </div>
-          </div>
+            </Text>
+            <Input
+              mt={2}
+              value={apiBase}
+              onChange={(event) => setApiBase(event.target.value)}
+              bg="rgba(15,18,26,0.8)"
+              borderColor="rgba(255,255,255,0.12)"
+              fontSize="sm"
+              color="#eef1ff"
+              _placeholder={{ color: '#64748b' }}
+            />
+            <HStack spacing={2} mt={2}>
+              <Button
+                size="xs"
+                variant="outline"
+                borderColor="rgba(255,255,255,0.2)"
+                onClick={() => setApiBase(PRESET_APIS.local)}
+              >
+                Local
+              </Button>
+              <Button
+                size="xs"
+                variant="outline"
+                borderColor="rgba(255,255,255,0.2)"
+                onClick={() => setApiBase(PRESET_APIS.render)}
+              >
+                Render
+              </Button>
+            </HStack>
+          </Box>
 
-          <label>
-            Store
+          <Box>
+            <Text fontSize="xs" color="#9aa6bf">
+              Store activo
+            </Text>
             {stores.length > 0 ? (
-              <select value={storeId} onChange={(event) => setStoreId(event.target.value)}>
+              <Select
+                mt={2}
+                value={storeId}
+                onChange={(event) => setStoreId(event.target.value)}
+                bg="rgba(15,18,26,0.8)"
+                borderColor="rgba(255,255,255,0.12)"
+                fontSize="sm"
+                color="#eef1ff"
+              >
                 {stores.map((store) => (
                   <option key={store.id} value={store.id}>
                     {store.name} (#{store.id})
                   </option>
                 ))}
-              </select>
+              </Select>
             ) : (
-              <input
+              <Input
+                mt={2}
                 type="number"
                 min="1"
                 value={storeId}
                 onChange={(event) => setStoreId(event.target.value)}
+                bg="rgba(15,18,26,0.8)"
+                borderColor="rgba(255,255,255,0.12)"
+                fontSize="sm"
+                color="#eef1ff"
+                _placeholder={{ color: '#64748b' }}
               />
             )}
-          </label>
+          </Box>
 
-          {status === 'error' && <p className="error">{error}</p>}
+          <Button onClick={handleLogout} variant="outline" borderColor="rgba(255,255,255,0.2)">
+            Cerrar sesion
+          </Button>
+        </VStack>
 
-          <div className="panel subtle">
-            <h2>Resumen</h2>
-            {!pack && <p className="muted">Sin datos cargados.</p>}
-            {pack && counts && (
-              <div className="grid">
-                <div className="card">
-                  <p className="label">Version</p>
-                  <p className="value">{pack.version}</p>
-                </div>
-                <div className="card">
-                  <p className="label">Stores</p>
-                  <p className="value">{counts.stores}</p>
-                </div>
-                <div className="card">
-                  <p className="label">Zones</p>
-                  <p className="value">{counts.zones}</p>
-                </div>
-                <div className="card">
-                  <p className="label">Products</p>
-                  <p className="value">{counts.products}</p>
-                </div>
-                <div className="card">
-                  <p className="label">Locations</p>
-                  <p className="value">{counts.locations}</p>
-                </div>
-              </div>
-            )}
-          </div>
+        <Box mt="auto" bg="rgba(255,255,255,0.06)" borderRadius="16px" p={3}>
+          <HStack spacing={2}>
+            <Box w="10px" h="10px" bg="#34d399" borderRadius="full" />
+            <Text fontSize="xs" color="#cbd5f5">
+              Sesion activa
+            </Text>
+          </HStack>
+          <Text fontSize="xs" color="#94a3b8" mt={1}>
+            {stores.length} stores detectados
+          </Text>
+        </Box>
+      </Box>
 
-          <div className="panel subtle">
-            <h2>Stores disponibles</h2>
-            <ul>
-              {stores.length === 0 && <li className="muted">Sin stores.</li>}
-              {stores.map((store) => (
-                <li key={store.id}>
-                  {store.name} <span className="muted">#{store.id}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </aside>
+      <Flex flex="1" direction="column" gap={6}>
+        <Flex justify="space-between" align="center">
+          <Box>
+            <Heading size="lg">Panel de control</Heading>
+            <Text color="#94a3b8" fontSize="sm" mt={1}>
+              Store activo: {storeId || 'N/A'} · API {apiBase}
+            </Text>
+          </Box>
+          <Button
+            onClick={handleRefresh}
+            bg="#f8b26a"
+            color="#1f232b"
+            _hover={{ bg: '#ffd2a1' }}
+          >
+            {status === 'loading' ? 'Cargando...' : 'Refrescar'}
+          </Button>
+        </Flex>
 
-        <section className="panel main">
-          <div className="tabs">
-            {[
-              { key: 'stores', label: 'Stores' },
-              { key: 'zones', label: 'Zones' },
-              { key: 'products', label: 'Products' },
-              { key: 'locations', label: 'Locations' },
-              { key: 'users', label: 'Usuarios' },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                className={activeTab === tab.key ? 'tab active' : 'tab'}
-                onClick={() =>
-                  setActiveTab(tab.key as 'stores' | 'zones' | 'products' | 'locations' | 'users')
-                }
+        {error ? (
+          <Box bg="rgba(239,68,68,0.12)" border="1px solid rgba(239,68,68,0.35)" p={4} borderRadius="16px">
+            <Text color="#fca5a5">{error}</Text>
+          </Box>
+        ) : null}
+
+        {activeTab === 'overview' && (
+          <Stack spacing={6}>
+            <SimpleGrid columns={{ base: 1, md: 2, xl: 4 }} spacing={4}>
+              <StatCard label="Version" value={pack?.version ?? 'Sin pack'} accent />
+              <StatCard label="Tiendas" value={counts?.stores ?? 0} />
+              <StatCard label="Zonas" value={counts?.zones ?? 0} />
+              <StatCard label="Productos" value={counts?.products ?? 0} />
+              <StatCard label="Ubicaciones" value={counts?.locations ?? 0} />
+              <StatCard label="Usuarios" value={users.length} />
+            </SimpleGrid>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+              <Box
+                bg="rgba(255,255,255,0.05)"
+                border="1px solid rgba(255,255,255,0.08)"
+                borderRadius="18px"
+                p={4}
               >
-                {tab.label}
-              </button>
+                <Text fontSize="sm" color="#9aa6bf">
+                  Stores disponibles
+                </Text>
+                <VStack align="stretch" mt={3} spacing={2}>
+                  {stores.length === 0 && (
+                    <Text fontSize="sm" color="#94a3b8">
+                      Sin stores.
+                    </Text>
+                  )}
+                  {stores.map((store) => (
+                    <HStack key={store.id} justify="space-between">
+                      <Text>{store.name}</Text>
+                      <Badge colorScheme="orange">#{store.id}</Badge>
+                    </HStack>
+                  ))}
+                </VStack>
+              </Box>
+              <Box
+                bg="rgba(255,255,255,0.05)"
+                border="1px solid rgba(255,255,255,0.08)"
+                borderRadius="18px"
+                p={4}
+              >
+                <Text fontSize="sm" color="#9aa6bf">
+                  Estado de usuarios
+                </Text>
+                <Text mt={3} fontSize="sm" color="#cbd5f5">
+                  {users.length} usuarios registrados · {users.filter((u) => u.roles.length > 0).length} con roles.
+                </Text>
+                <Text mt={2} fontSize="xs" color="#94a3b8">
+                  Ultima sincronizacion: {pack?.version ?? 'sin pack'}
+                </Text>
+              </Box>
+            </SimpleGrid>
+          </Stack>
+        )}
+
+        {activeTab === 'stores' && (
+          <SectionCard title="Tiendas">
+            {pack?.stores.upserts.map((store) => (
+              <RowItem key={store.id} title={store.name} meta={`#${store.id}`} />
             ))}
-          </div>
-
-          <div className="toolbar">
-            {activeTab === 'products' && (
-              <label>
-                Buscar producto
-                <input
-                  type="search"
-                  value={search}
-                  placeholder="Nombre del producto"
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-              </label>
+            {pack && pack.stores.upserts.length === 0 && (
+              <Text color="#94a3b8">Sin tiendas.</Text>
             )}
-            {activeTab !== 'products' && activeTab !== 'users' && (
-              <span className="muted">Filtro rapido por store activo.</span>
+            {!pack && <EmptyState />}
+          </SectionCard>
+        )}
+
+        {activeTab === 'zones' && (
+          <SectionCard title="Zonas">
+            {filteredZones.map((zone) => (
+              <RowItem key={zone.id} title={zone.name} meta={`#${zone.id} · store ${zone.store_id}`} />
+            ))}
+            {pack && filteredZones.length === 0 && (
+              <Text color="#94a3b8">Sin zonas para este store.</Text>
             )}
-            {activeTab === 'users' && (
-              <span className="muted">Usuarios registrados con roles asignados.</span>
-            )}
-          </div>
+            {!pack && <EmptyState />}
+          </SectionCard>
+        )}
 
-          {!pack && activeTab !== 'users' && (
-            <p className="muted">Carga un pack para ver el detalle.</p>
-          )}
-
-          {pack && activeTab === 'stores' && (
-            <div className="list">
-              {pack.stores.upserts.map((store) => (
-                <div key={store.id} className="row-item">
-                  <strong>{store.name}</strong>
-                  <span className="muted">#{store.id}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {pack && activeTab === 'zones' && (
-            <div className="list">
-              {filteredZones.map((zone) => (
-                <div key={zone.id} className="row-item">
-                  <strong>{zone.name}</strong>
-                  <span className="muted">#{zone.id} · store {zone.store_id}</span>
-                </div>
-              ))}
-              {filteredZones.length === 0 && <p className="muted">Sin zonas para este store.</p>}
-            </div>
-          )}
-
-          {pack && activeTab === 'products' && (
-            <div className="list">
+        {activeTab === 'products' && (
+          <SectionCard title="Productos">
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar producto"
+              bg="rgba(15,18,26,0.8)"
+              borderColor="rgba(255,255,255,0.12)"
+              color="#eef1ff"
+              _placeholder={{ color: '#64748b' }}
+            />
+            <VStack align="stretch" spacing={3} mt={4}>
               {filteredProducts.map((product) => (
-                <div key={product.id} className="row-item">
-                  <strong>{product.name}</strong>
-                  <span className="muted">
-                    #{product.id}
-                    {product.category ? ` · ${product.category}` : ''}
-                  </span>
-                </div>
+                <RowItem
+                  key={product.id}
+                  title={product.name}
+                  meta={`#${product.id}${product.category ? ` · ${product.category}` : ''}`}
+                />
               ))}
-              {filteredProducts.length === 0 && <p className="muted">Sin productos.</p>}
-            </div>
-          )}
-
-          {pack && activeTab === 'locations' && (
-            <div className="list">
-              {filteredLocations.map((location) => (
-                <div key={`${location.product_id}-${location.store_id}`} className="row-item">
-                  <strong>Producto {location.product_id}</strong>
-                  <span className="muted">
-                    store {location.store_id} · zone {location.zone_id ?? '-'} · conf{' '}
-                    {location.confidence ?? '-'}
-                  </span>
-                </div>
-              ))}
-              {filteredLocations.length === 0 && <p className="muted">Sin ubicaciones.</p>}
-            </div>
-          )}
-
-          {activeTab === 'users' && (
-            <div className="list">
-              {usersStatus === 'loading' && <p className="muted">Cargando usuarios...</p>}
-              {usersStatus === 'error' && usersError && <p className="error">{usersError}</p>}
-              {usersStatus === 'idle' && users.length === 0 && (
-                <p className="muted">Sin usuarios.</p>
+              {pack && filteredProducts.length === 0 && (
+                <Text color="#94a3b8">Sin productos.</Text>
               )}
+              {!pack && <EmptyState />}
+            </VStack>
+          </SectionCard>
+        )}
+
+        {activeTab === 'locations' && (
+          <SectionCard title="Ubicaciones">
+            {filteredLocations.map((location) => (
+              <RowItem
+                key={`${location.product_id}-${location.store_id}`}
+                title={`Producto ${location.product_id}`}
+                meta={`store ${location.store_id} · zone ${location.zone_id ?? '-'} · conf ${
+                  location.confidence ?? '-'
+                }`}
+              />
+            ))}
+            {pack && filteredLocations.length === 0 && (
+              <Text color="#94a3b8">Sin ubicaciones.</Text>
+            )}
+            {!pack && <EmptyState />}
+          </SectionCard>
+        )}
+
+        {activeTab === 'users' && (
+          <SectionCard title="Usuarios">
+            {usersStatus === 'loading' && (
+              <HStack spacing={3} color="#94a3b8">
+                <Spinner size="sm" />
+                <Text>Cargando usuarios...</Text>
+              </HStack>
+            )}
+            {usersStatus === 'error' && usersError && <Text color="#fca5a5">{usersError}</Text>}
+            {usersStatus === 'idle' && users.length === 0 && (
+              <Text color="#94a3b8">Sin usuarios.</Text>
+            )}
+            <VStack align="stretch" spacing={4} mt={2}>
               {users.map((user) => (
-                <div key={user.id} className="row-item">
-                  <div className="stack">
-                    <strong>{user.display_name?.trim() || 'Sin nombre'}</strong>
-                    <span className="muted">{user.email ?? 'Sin email'}</span>
-                    <span className="muted">{user.id}</span>
-                  </div>
-                  <div className="roles">
-                    {user.roles.length === 0 && <span className="muted">Sin roles</span>}
+                <Flex
+                  key={user.id}
+                  direction={{ base: 'column', md: 'row' }}
+                  justify="space-between"
+                  gap={3}
+                  bg="rgba(255,255,255,0.04)"
+                  border="1px solid rgba(255,255,255,0.08)"
+                  borderRadius="16px"
+                  p={4}
+                >
+                  <Box>
+                    <Text fontWeight="600">{user.display_name?.trim() || 'Sin nombre'}</Text>
+                    <Text fontSize="sm" color="#94a3b8">
+                      {user.email ?? 'Sin email'}
+                    </Text>
+                    <Text fontSize="xs" color="#6b7280" mt={1}>
+                      {user.id}
+                    </Text>
+                  </Box>
+                  <HStack flexWrap="wrap" justify={{ base: 'flex-start', md: 'flex-end' }}>
+                    {user.roles.length === 0 && (
+                      <Badge colorScheme="gray" variant="subtle">
+                        Sin roles
+                      </Badge>
+                    )}
                     {user.roles.map((role) => (
-                      <span key={`${user.id}-${role.key}-${role.store_id ?? 'global'}`} className="pill role">
+                      <Badge
+                        key={`${user.id}-${role.key}-${role.store_id ?? 'global'}`}
+                        colorScheme={role.key === 'admin_god' ? 'orange' : 'blue'}
+                        variant="solid"
+                      >
                         {role.key}
                         {role.store_id ? ` · tienda ${role.store_id}` : ''}
-                      </span>
+                      </Badge>
                     ))}
-                  </div>
-                </div>
+                  </HStack>
+                </Flex>
               ))}
-            </div>
-          )}
-        </section>
-      </div>
-      )}
-    </main>
+            </VStack>
+          </SectionCard>
+        )}
+      </Flex>
+    </Flex>
   );
+}
+
+function StatCard({ label, value, accent }: { label: string; value: string | number; accent?: boolean }) {
+  return (
+    <Box
+      bg={accent ? 'rgba(248,178,106,0.16)' : 'rgba(255,255,255,0.05)'}
+      border="1px solid rgba(255,255,255,0.08)"
+      borderRadius="18px"
+      p={4}
+    >
+      <Text fontSize="xs" color="#9aa6bf" textTransform="uppercase" letterSpacing="0.2em">
+        {label}
+      </Text>
+      <Text fontSize="2xl" fontWeight="700" mt={2}>
+        {value}
+      </Text>
+    </Box>
+  );
+}
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Box
+      bg="rgba(255,255,255,0.04)"
+      border="1px solid rgba(255,255,255,0.08)"
+      borderRadius="24px"
+      p={6}
+    >
+      <Heading size="md" mb={4}>
+        {title}
+      </Heading>
+      <VStack align="stretch" spacing={3}>
+        {children}
+      </VStack>
+    </Box>
+  );
+}
+
+function RowItem({ title, meta }: { title: string; meta: string }) {
+  return (
+    <Flex
+      justify="space-between"
+      align={{ base: 'flex-start', md: 'center' }}
+      direction={{ base: 'column', md: 'row' }}
+      gap={2}
+      bg="rgba(255,255,255,0.04)"
+      border="1px solid rgba(255,255,255,0.08)"
+      borderRadius="16px"
+      px={4}
+      py={3}
+    >
+      <Text fontWeight="600">{title}</Text>
+      <Text fontSize="sm" color="#94a3b8">
+        {meta}
+      </Text>
+    </Flex>
+  );
+}
+
+function EmptyState() {
+  return <Text color="#94a3b8">Carga un pack para ver el detalle.</Text>;
 }
