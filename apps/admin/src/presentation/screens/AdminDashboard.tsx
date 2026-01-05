@@ -71,6 +71,7 @@ export function AdminDashboard({
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>('store');
   const [search, setSearch] = useState('');
+  const isStoreScope = activeTab === 'store' || activeTab === 'zones' || activeTab === 'locations';
 
   const parsedStoreId = Number(storeId);
   const filteredZones = useMemo(() => {
@@ -177,36 +178,12 @@ export function AdminDashboard({
             <Text fontSize="xs" color="#9aa6bf">
               Store activo
             </Text>
-            {stores.length > 0 ? (
-              <Select
-                mt={2}
-                value={storeId}
-                onChange={(event) => onStoreChange(event.target.value)}
-                bg="rgba(15,18,26,0.8)"
-                borderColor="rgba(255,255,255,0.12)"
-                fontSize="sm"
-                color="#eef1ff"
-              >
-                {stores.map((store) => (
-                  <option key={store.id} value={store.id}>
-                    {store.name} (#{store.id})
-                  </option>
-                ))}
-              </Select>
-            ) : (
-              <Input
-                mt={2}
-                type="number"
-                min="1"
-                value={storeId}
-                onChange={(event) => onStoreChange(event.target.value)}
-                bg="rgba(15,18,26,0.8)"
-                borderColor="rgba(255,255,255,0.12)"
-                fontSize="sm"
-                color="#eef1ff"
-                _placeholder={{ color: '#64748b' }}
-              />
-            )}
+            <Text fontSize="sm" color="#cbd5f5" mt={2}>
+              {activeStoreName} · #{storeId}
+            </Text>
+            <Text fontSize="xs" color="#64748b" mt={1}>
+              Cambia la tienda desde la cabecera.
+            </Text>
           </Box>
 
           <Button
@@ -233,21 +210,41 @@ export function AdminDashboard({
       </Box>
 
       <Flex flex="1" direction="column" gap={6}>
-        <Flex justify="space-between" align="center">
+        <Flex justify="space-between" align="center" wrap="wrap" gap={4}>
           <Box>
-            <Heading size="lg">{activeStoreName}</Heading>
+            <Heading size="lg">{isStoreScope ? activeStoreName : 'Panel global'}</Heading>
             <Text color="#94a3b8" fontSize="sm" mt={1}>
-              Store activo: #{storeId || 'N/A'} · API {apiBase}
+              {isStoreScope
+                ? `Store activo: #${storeId || 'N/A'} · API ${apiBase}`
+                : `Datos globales · Store seleccionado: #${storeId || 'N/A'} · API ${apiBase}`}
             </Text>
           </Box>
-          <Button
-            onClick={onRefresh}
-            bg="#f8b26a"
-            color="#1f232b"
-            _hover={{ bg: '#ffd2a1' }}
-          >
-            {packStatus === 'loading' ? 'Cargando...' : 'Refrescar'}
-          </Button>
+          <HStack spacing={3} flexWrap="wrap" justify="flex-end">
+            <Select
+              value={storeId}
+              onChange={(event) => onStoreChange(event.target.value)}
+              bg="rgba(15,18,26,0.8)"
+              borderColor="rgba(255,255,255,0.12)"
+              color="#eef1ff"
+              fontSize="sm"
+              minW="220px"
+            >
+              {stores.length === 0 && <option value={storeId}>#{storeId}</option>}
+              {stores.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name} (#{store.id})
+                </option>
+              ))}
+            </Select>
+            <Button
+              onClick={onRefresh}
+              bg="#f8b26a"
+              color="#1f232b"
+              _hover={{ bg: '#ffd2a1' }}
+            >
+              {packStatus === 'loading' ? 'Cargando...' : 'Refrescar'}
+            </Button>
+          </HStack>
         </Flex>
 
         {packError ? (
