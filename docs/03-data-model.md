@@ -21,7 +21,7 @@
 - roles (key: admin, map_editor, store_editor, user)
 - user_roles (user_id, role_id, store_id)
 - zones
-- products (genericos)
+- products (genericos, created_by, created_at)
 - product_variants (marca + ean)
 - events (append-only)
 - product_locations (consolidado)

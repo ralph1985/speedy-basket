@@ -15,6 +15,7 @@ export interface AppRepository {
   getStoreCount(): Promise<number>;
   listStores(): Promise<StoreItem[]>;
   listProducts(search: string, storeId: number): Promise<ProductListItem[]>;
+  insertProduct(product: { id: number; name: string; category: string | null }): Promise<void>;
   listZones(storeId: number): Promise<ZoneItem[]>;
   getProductDetail(productId: number, storeId: number): Promise<ProductDetail | null>;
   createOutboxEvent(type: EventType, payload: Record<string, unknown>): Promise<string>;

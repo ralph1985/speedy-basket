@@ -18,6 +18,7 @@ import {
   loadStores,
   loadStoreCount,
   loadTableCounts,
+  addProduct,
   loadZones,
   recordOutboxEvent,
   resetWithPack,
@@ -78,6 +79,23 @@ async function postEvents(events: SyncEvent[], authToken: string) {
   return data.accepted ?? 0;
 }
 
+async function postProduct(
+  payload: { name: string; category?: string | null },
+  authToken: string
+) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  const res = await fetch(`${API_BASE_URL}/products`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to create product');
+  return res.json();
+}
+
 type HomeContextValue = {
   t: TFunction;
   language: Language;
@@ -113,6 +131,7 @@ type HomeContextValue = {
   handleSync: () => Promise<void>;
   loadDetail: (productId: number) => Promise<ProductDetail | null>;
   recordEvent: (detail: ProductDetail, type: 'FOUND' | 'NOT_FOUND') => Promise<void>;
+  createProduct: (name: string, category?: string | null) => Promise<void>;
 };
 
 type ProviderProps = {
@@ -558,6 +577,34 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     [activeStoreId, pack, refreshDevData, repo, t]
   );
 
+  const createProduct = useCallback(
+    async (name: string, category?: string | null) => {
+      const token = authToken.trim();
+      if (!token) {
+        setStatusKey('status.authRequired');
+        setStatusParams({});
+        return;
+      }
+      try {
+        const created = await postProduct({ name, category }, token);
+        await addProduct(repo, {
+          id: Number(created.id),
+          name: created.name,
+          category: created.category ?? null,
+        });
+        await refreshListData(search, activeStoreId);
+        await refreshDevData();
+        setStatusKey('status.productCreated');
+        setStatusParams({ name: created.name });
+      } catch (error) {
+        const message = getErrorMessage(error);
+        setStatusKey('status.productCreateFailed');
+        setStatusParams({ message });
+      }
+    },
+    [activeStoreId, authToken, refreshDevData, refreshListData, repo, search]
+  );
+
   const value = useMemo<HomeContextValue>(
     () => ({
       t,
@@ -594,6 +641,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       handleSync,
       loadDetail,
       recordEvent,
+      createProduct,
     }),
     [
       authToken,
@@ -615,6 +663,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       outboxSent,
       products,
       recordEvent,
+      createProduct,
       refreshDevData,
       search,
       selectedZoneId,

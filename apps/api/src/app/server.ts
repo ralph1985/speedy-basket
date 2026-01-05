@@ -8,6 +8,7 @@ import { createPackRepository } from '../infra/db/packRepo';
 import { registerStoresRoutes } from './routes/stores';
 import { registerProfileRoutes } from './routes/profile';
 import { registerAdminRoutes } from './routes/admin';
+import { registerProductsRoutes } from './routes/products';
 
 export function createServer() {
   const server = Fastify({ logger: true });
@@ -36,6 +37,7 @@ export function createServer() {
   registerPacksRoutes(server, { packs: packRepo });
   registerStoresRoutes(server);
   registerProfileRoutes(server);
+  registerProductsRoutes(server);
   registerAdminRoutes(server, { packs: packRepo });
 
   return server;

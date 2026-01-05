@@ -173,6 +173,17 @@ export async function listProducts(db: SQLite.SQLiteDatabase, search = '', store
   return rows;
 }
 
+export async function insertProduct(
+  db: SQLite.SQLiteDatabase,
+  product: { id: number; name: string; category: string | null }
+) {
+  await db.runAsync('INSERT OR REPLACE INTO products (id, name, category) VALUES (?, ?, ?)', [
+    product.id,
+    product.name,
+    product.category ?? null,
+  ]);
+}
+
 export async function getProductDetail(
   db: SQLite.SQLiteDatabase,
   productId: number,

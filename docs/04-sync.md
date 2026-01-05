@@ -26,6 +26,10 @@ Incluye:
 - products (genericos)
 - product_variants (marca + ean)
 
+## API (write)
+
+- POST /products (auth requerida): crea producto generico (name, category?).
+
 ## Conflictos
 
 - Se resuelven en backend:

@@ -18,6 +18,13 @@ export async function loadProducts(repo: AppRepository, search = '', storeId: nu
   return repo.listProducts(search, storeId);
 }
 
+export async function addProduct(
+  repo: AppRepository,
+  product: { id: number; name: string; category: string | null }
+) {
+  return repo.insertProduct(product);
+}
+
 export async function loadZones(repo: AppRepository, storeId: number) {
   return repo.listZones(storeId);
 }

@@ -12,6 +12,7 @@ import {
   getMetaValue,
   importPack,
   importPackIfNeeded,
+  insertProduct,
   initDatabase,
   listOutboxEvents,
   listPendingOutboxEvents,
@@ -42,6 +43,10 @@ export class SqliteRepository implements AppRepository {
 
   async listProducts(search: string, storeId: number) {
     return listProducts(this.requireDb(), search, storeId);
+  }
+
+  async insertProduct(product: { id: number; name: string; category: string | null }) {
+    await insertProduct(this.requireDb(), product);
   }
 
   async listZones(storeId: number) {
