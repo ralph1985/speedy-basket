@@ -5,6 +5,7 @@
   "scripts": {
     "dev:app": "pnpm --filter mobile start",
     "dev:api": "pnpm --filter api dev",
+    "dev:admin": "pnpm --filter admin dev",
     "build": "pnpm --filter api build",
     "typecheck": "pnpm --filter mobile typecheck && pnpm --filter api typecheck",
     "lint": "eslint .",

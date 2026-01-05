@@ -9,6 +9,7 @@
 
 - App: `pnpm dev:app`
 - API: `pnpm dev:api`
+- Admin: `pnpm dev:admin`
 - Reset: `pnpm db:reset`
 
 ## Backend local desde el movil
