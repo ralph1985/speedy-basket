@@ -1,6 +1,9 @@
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { MaterialTopTabBarProps } from '@react-navigation/material-top-tabs';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from 'react-native-paper';
 import DevScreen from '@presentation/screens/DevScreen';
 import ListScreen from '@presentation/screens/ListScreen';
@@ -11,19 +14,61 @@ import colors from '@presentation/styles/colors';
 import { useHome } from '@presentation/context/HomeContext';
 import type { HomeTabParamList, RootStackParamList } from './types';
 
-const Tab = createBottomTabNavigator<HomeTabParamList>();
+const Tab = createMaterialTopTabNavigator<HomeTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const CustomTabBar = ({ state, descriptors, navigation }: MaterialTopTabBarProps) => {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={[styles.tabBar, { paddingBottom: Math.max(6, insets.bottom) }]}>
+      {state.routes.map((route, index) => {
+        const isFocused = state.index === index;
+        const { options } = descriptors[route.key];
+        const label = options.tabBarLabel ?? options.title ?? route.name;
+        const icon = options.tabBarIcon?.({
+          focused: isFocused,
+          color: isFocused ? colors.primary : colors.textSoft,
+        });
+
+        const onPress = () => {
+          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        const onLongPress = () => navigation.emit({ type: 'tabLongPress', target: route.key });
+
+        return (
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            style={[styles.tabItem, isFocused && styles.tabItemActive]}
+          >
+            {icon}
+            <Text style={[styles.tabLabel, { color: isFocused ? colors.primary : colors.textSoft }]}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
 
 const Tabs = () => {
   const { t } = useHome();
 
   return (
     <Tab.Navigator
+      tabBarPosition="bottom"
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSoft,
-        tabBarStyle: { backgroundColor: colors.surface },
+        swipeEnabled: true,
+        animationEnabled: true,
       }}
     >
       <Tab.Screen
@@ -82,3 +127,27 @@ export default function AppNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: colors.surface,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  tabItem: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 4,
+    paddingVertical: 6,
+  },
+  tabItemActive: {
+    backgroundColor: colors.surface,
+  },
+  tabLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+});
