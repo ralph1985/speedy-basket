@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppRepository } from '@domain/ports';
 import type {
   OutboxEventItem,
@@ -231,6 +231,8 @@ type HomeContextValue = {
   lastSyncStatus: 'idle' | 'ok' | 'failed';
   lastSyncError: string | null;
   refreshDevData: () => Promise<void>;
+  devUnlocked: boolean;
+  registerDevTap: () => void;
   handleReset: () => Promise<void>;
   handleSync: () => Promise<void>;
   loadDetail: (productId: number) => Promise<ProductDetail | null>;
@@ -274,6 +276,9 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [lastSyncStatus, setLastSyncStatus] = useState<'idle' | 'ok' | 'failed'>('idle');
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [devUnlocked, setDevUnlocked] = useState(false);
+  const devTapCount = useRef(0);
+  const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lastSyncStats, setLastSyncStats] = useState<Record<string, string> | null>(null);
   const [language, setLanguage] = useState<Language>('es');
   const [authToken, setAuthTokenState] = useState('');
@@ -670,6 +675,21 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     [repo]
   );
 
+  const registerDevTap = useCallback(() => {
+    devTapCount.current += 1;
+    if (devTapTimer.current) {
+      clearTimeout(devTapTimer.current);
+    }
+    if (devTapCount.current >= 5) {
+      devTapCount.current = 0;
+      setDevUnlocked(true);
+      return;
+    }
+    devTapTimer.current = setTimeout(() => {
+      devTapCount.current = 0;
+    }, 1200);
+  }, []);
+
   const signIn = useCallback(
     async (email: string, password: string) => {
       setAuthStatus('loading');
@@ -953,6 +973,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       lastSyncStatus,
       lastSyncError,
       refreshDevData,
+      devUnlocked,
+      registerDevTap,
       handleReset,
       handleSync,
       loadDetail,
@@ -978,6 +1000,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       loadDetail,
       outboxPending,
       outboxSent,
+      devUnlocked,
+      registerDevTap,
       products,
       recordEvent,
       createProduct,

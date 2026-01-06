@@ -18,6 +18,7 @@ export default function HomeLayout({ showDevInfo = false, children }: Props) {
     lastSyncAt,
     lastSyncStatus,
     lastSyncError,
+    registerDevTap,
     t,
   } = useHome();
 
@@ -33,7 +34,7 @@ export default function HomeLayout({ showDevInfo = false, children }: Props) {
           apiBaseUrl={API_BASE_URL}
           showDevInfo={showDevInfo}
           t={t}
-          onSecretTap={() => null}
+          onSecretTap={registerDevTap}
         />
         {children}
       </View>

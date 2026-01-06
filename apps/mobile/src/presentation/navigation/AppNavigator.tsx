@@ -60,7 +60,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: MaterialTopTabBarProps
 };
 
 const Tabs = () => {
-  const { t } = useHome();
+  const { t, devUnlocked } = useHome();
 
   return (
     <Tab.Navigator
@@ -98,14 +98,16 @@ const Tabs = () => {
           tabBarIcon: ({ color }) => <Icon source="cog-outline" color={color} size={24} />,
         }}
       />
-      <Tab.Screen
-        name="Dev"
-        component={DevScreen}
-        options={{
-          title: t('nav.dev'),
-          tabBarIcon: ({ color }) => <Icon source="wrench-outline" color={color} size={24} />,
-        }}
-      />
+      {devUnlocked ? (
+        <Tab.Screen
+          name="Dev"
+          component={DevScreen}
+          options={{
+            title: t('nav.dev'),
+            tabBarIcon: ({ color }) => <Icon source="wrench-outline" color={color} size={24} />,
+          }}
+        />
+      ) : null}
     </Tab.Navigator>
   );
 };
