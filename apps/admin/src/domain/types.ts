@@ -35,6 +35,8 @@ export type UserRow = {
   display_name: string | null;
   created_at: string;
   roles: UserRole[];
+  lists: Array<{ id: number; name: string }>;
+  list_count: number;
 };
 
 export type TabKey = 'store' | 'zones' | 'locations' | 'products' | 'users';

@@ -71,6 +71,8 @@ export function registerAdminRoutes(server: FastifyInstance, deps: { packs: Pack
         display_name: string | null;
         created_at: string | null;
         roles: Array<{ key: string; store_id: number | null; scope: string }> | string | null;
+        lists: Array<{ id: number; name: string }> | string | null;
+        list_count: number | null;
       }>('SELECT * FROM list_admin_users()');
 
       return result.rows.map((row) => ({
@@ -84,6 +86,13 @@ export function registerAdminRoutes(server: FastifyInstance, deps: { packs: Pack
             : Array.isArray(row.roles)
               ? row.roles
               : [],
+        lists:
+          typeof row.lists === 'string'
+            ? (JSON.parse(row.lists) as Array<{ id: number; name: string }>)
+            : Array.isArray(row.lists)
+              ? row.lists
+              : [],
+        list_count: row.list_count ? Number(row.list_count) : 0,
       }));
     });
   });

@@ -454,6 +454,22 @@ export function AdminDashboard({
                     <Text fontSize="xs" color="#6b7280" mt={1}>
                       {user.id}
                     </Text>
+                    <Text fontSize="xs" color="#cbd5f5" mt={2}>
+                      Cestas: {user.list_count}
+                    </Text>
+                    {user.lists.length > 0 ? (
+                      <HStack spacing={2} mt={2} flexWrap="wrap">
+                        {user.lists.map((list) => (
+                          <Badge
+                            key={list.id}
+                            variant="subtle"
+                            colorScheme="purple"
+                          >
+                            {list.name}
+                          </Badge>
+                        ))}
+                      </HStack>
+                    ) : null}
                   </Box>
                   <HStack flexWrap="wrap" justify={{ base: 'flex-start', md: 'flex-end' }}>
                     {user.roles.length === 0 && (
