@@ -28,7 +28,9 @@ import {
   setMetaValue,
   listShoppingLists,
   createShoppingListLocal,
+  upsertShoppingListFromRemote,
   listShoppingListItems,
+  upsertShoppingListItemFromRemote,
   addShoppingListItemLocal,
   toggleShoppingListItemLocal,
   listShoppingListsNeedingSync,
@@ -101,8 +103,23 @@ export class SqliteRepository implements AppRepository {
     return createShoppingListLocal(this.requireDb(), payload);
   }
 
+  async upsertShoppingListFromRemote(payload: { remoteId: number; name: string }) {
+    return upsertShoppingListFromRemote(this.requireDb(), payload);
+  }
+
   async listShoppingListItems(listId: number, locale: string) {
     return listShoppingListItems(this.requireDb(), listId, locale);
+  }
+
+  async upsertShoppingListItemFromRemote(payload: {
+    listId: number;
+    remoteId: number;
+    productId: number | null;
+    label: string;
+    qty: string | null;
+    checked: boolean;
+  }) {
+    return upsertShoppingListItemFromRemote(this.requireDb(), payload);
   }
 
   async addShoppingListItem(

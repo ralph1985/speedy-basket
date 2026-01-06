@@ -150,6 +150,29 @@ export async function createShoppingListLocal(
   };
 }
 
+export async function upsertShoppingListFromRemote(
+  db: SQLite.SQLiteDatabase,
+  payload: { remoteId: number; name: string }
+) {
+  const now = new Date().toISOString();
+  const existing = await db.getFirstAsync<{ id: number }>(
+    'SELECT id FROM shopping_lists WHERE remote_id = ?',
+    [payload.remoteId]
+  );
+  if (existing?.id) {
+    await db.runAsync(
+      'UPDATE shopping_lists SET name = ?, updated_at = ?, synced_at = ? WHERE id = ?',
+      [payload.name, now, now, existing.id]
+    );
+    return existing.id;
+  }
+  const result = await db.runAsync(
+    'INSERT INTO shopping_lists (remote_id, name, created_at, updated_at, synced_at) VALUES (?, ?, ?, ?, ?)',
+    [payload.remoteId, payload.name, now, now, now]
+  );
+  return result.lastInsertRowId ?? 0;
+}
+
 export async function listShoppingListItems(db: SQLite.SQLiteDatabase, listId: number, locale: string) {
   return db.getAllAsync<{
     id: number;
@@ -177,6 +200,70 @@ export async function listShoppingListItems(db: SQLite.SQLiteDatabase, listId: n
     `,
     [locale, listId]
   );
+}
+
+export async function upsertShoppingListItemFromRemote(
+  db: SQLite.SQLiteDatabase,
+  payload: {
+    listId: number;
+    remoteId: number;
+    productId: number | null;
+    label: string;
+    qty: string | null;
+    checked: boolean;
+  }
+) {
+  const now = new Date().toISOString();
+  const existing = await db.getFirstAsync<{
+    id: number;
+    updated_at: string;
+    synced_at: string | null;
+  }>(
+    'SELECT id, updated_at, synced_at FROM shopping_list_items WHERE remote_id = ? AND list_id = ?',
+    [payload.remoteId, payload.listId]
+  );
+  if (existing?.id) {
+    const hasLocalChanges =
+      !existing.synced_at ||
+      new Date(existing.updated_at).getTime() > new Date(existing.synced_at).getTime();
+    if (!hasLocalChanges) {
+      await db.runAsync(
+        `
+        UPDATE shopping_list_items
+        SET product_id = ?, label = ?, qty = ?, checked = ?, updated_at = ?, synced_at = ?
+        WHERE id = ?
+        `,
+        [
+          payload.productId,
+          payload.label,
+          payload.qty,
+          payload.checked ? 1 : 0,
+          now,
+          now,
+          existing.id,
+        ]
+      );
+    }
+    return existing.id;
+  }
+  const result = await db.runAsync(
+    `
+    INSERT INTO shopping_list_items (remote_id, list_id, product_id, label, qty, checked, created_at, updated_at, synced_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      payload.remoteId,
+      payload.listId,
+      payload.productId,
+      payload.label,
+      payload.qty,
+      payload.checked ? 1 : 0,
+      now,
+      now,
+      now,
+    ]
+  );
+  return result.lastInsertRowId ?? 0;
 }
 
 export async function addShoppingListItemLocal(

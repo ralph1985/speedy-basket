@@ -113,6 +113,38 @@ async function postList(payload: { name: string }, authToken: string) {
   return res.json();
 }
 
+async function fetchLists(authToken: string) {
+  const headers: Record<string, string> = {};
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  const res = await fetch(`${API_BASE_URL}/lists`, { headers });
+  if (!res.ok) throw new Error('Failed to fetch lists');
+  return res.json() as Promise<Array<{ id: number; name: string }>>;
+}
+
+async function fetchListItems(listId: number, authToken: string, locale: string) {
+  const headers: Record<string, string> = {};
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  const res = await fetch(
+    `${API_BASE_URL}/lists/${listId}/items?lang=${locale === 'en' ? 'en' : 'es'}`,
+    { headers }
+  );
+  if (!res.ok) throw new Error('Failed to fetch list items');
+  return res.json() as Promise<
+    Array<{
+      id: number;
+      listId: number;
+      productId: number | null;
+      label: string;
+      qty: string | null;
+      checked: boolean;
+    }>
+  >;
+}
+
 async function postListItem(
   listId: number,
   payload: { productId?: number; label?: string; qty?: string | null },
@@ -430,6 +462,34 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     [authToken, language, repo]
   );
 
+  const pullListsIfNeeded = useCallback(
+    async () => {
+      const token = authToken.trim();
+      if (!token) return;
+      const listsFromServer = await fetchLists(token);
+      for (const list of listsFromServer) {
+        const localListId = await repo.upsertShoppingListFromRemote({
+          remoteId: Number(list.id),
+          name: list.name,
+        });
+        const items = await fetchListItems(Number(list.id), token, language);
+        for (const item of items) {
+          await repo.upsertShoppingListItemFromRemote({
+            listId: localListId,
+            remoteId: Number(item.id),
+            productId: item.productId ? Number(item.productId) : null,
+            label: item.label,
+            qty: item.qty ?? null,
+            checked: Boolean(item.checked),
+          });
+        }
+      }
+      await refreshLists();
+      await refreshListItems();
+    },
+    [authToken, language, refreshListItems, refreshLists, repo]
+  );
+
   const setActiveListId = useCallback(
     (listId: number) => {
       setActiveListIdState(listId);
@@ -708,8 +768,9 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       ]);
       setAuthStatus('idle');
       await refreshCategories();
+      await pullListsIfNeeded();
     },
-    [refreshCategories, repo, t]
+    [pullListsIfNeeded, refreshCategories, repo, t]
   );
 
   const signOut = useCallback(async () => {
@@ -829,6 +890,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       await refreshZones();
       await refreshDevData();
       await syncProductsIfNeeded();
+      await pullListsIfNeeded();
       await syncListsIfNeeded();
       const now = new Date().toISOString();
       await repo.setMetaValue('sync_last_at', now);
@@ -870,6 +932,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     refreshListData,
     refreshSyncMeta,
     refreshZones,
+    pullListsIfNeeded,
     syncListsIfNeeded,
     syncProductsIfNeeded,
     repo,

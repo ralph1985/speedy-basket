@@ -37,6 +37,7 @@ export interface AppRepository {
     name: string;
     remoteId: number | null;
   }>;
+  upsertShoppingListFromRemote(payload: { remoteId: number; name: string }): Promise<number>;
   listShoppingListItems(
     listId: number,
     locale: string
@@ -49,6 +50,14 @@ export interface AppRepository {
     checked: number;
     productName: string | null;
   }>>;
+  upsertShoppingListItemFromRemote(payload: {
+    listId: number;
+    remoteId: number;
+    productId: number | null;
+    label: string;
+    qty: string | null;
+    checked: boolean;
+  }): Promise<number>;
   addShoppingListItem(
     listId: number,
     payload: { productId?: number; label?: string; qty?: string | null }

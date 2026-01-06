@@ -48,6 +48,7 @@ Incluye:
 - Productos y cestas se crean en SQLite con ids locales negativos.
 - En Sync:
   - Se envian productos locales y se remapean ids en SQLite.
+  - Se hace pull de cestas/items desde el backend para reflejar cambios compartidos.
   - Se envian cestas e items pendientes cuando ya existe el id remoto.
 - La UI muestra "pendiente de sync" para productos locales.
 
