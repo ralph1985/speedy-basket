@@ -320,20 +320,20 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
 
   const refreshListData = useCallback(
     async (value = search, storeId = activeStoreId) => {
-      if (!storeId) return;
-      const rows = await loadProducts(repo, value, storeId, language);
+      const effectiveStoreId = storeId ?? fallbackStoreId(pack);
+      const rows = await loadProducts(repo, value, effectiveStoreId, language);
       setProducts(rows);
     },
-    [activeStoreId, language, repo, search]
+    [activeStoreId, language, pack, repo, search]
   );
 
   const refreshZones = useCallback(
     async (storeId = activeStoreId) => {
-      if (!storeId) return;
-      const rows = await loadZones(repo, storeId);
+      const effectiveStoreId = storeId ?? fallbackStoreId(pack);
+      const rows = await loadZones(repo, effectiveStoreId);
       setZones(rows);
     },
-    [activeStoreId, repo]
+    [activeStoreId, pack, repo]
   );
 
   const refreshCategories = useCallback(async () => {
