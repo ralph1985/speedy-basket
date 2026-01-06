@@ -31,13 +31,14 @@ export interface AppRepository {
     storeId: number,
     locale: string
   ): Promise<ProductDetail | null>;
-  listShoppingLists(): Promise<Array<{ id: number; name: string; remoteId: number | null }>>;
+  listShoppingLists(): Promise<Array<{ id: number; name: string; role: string; remoteId: number | null }>>;
   createShoppingList(payload: { name: string }): Promise<{
     id: number;
     name: string;
+    role: string;
     remoteId: number | null;
   }>;
-  upsertShoppingListFromRemote(payload: { remoteId: number; name: string }): Promise<number>;
+  upsertShoppingListFromRemote(payload: { remoteId: number; name: string; role: string }): Promise<number>;
   isShoppingListDeletedByRemoteId(remoteId: number): Promise<boolean>;
   listShoppingListItems(
     listId: number,
@@ -66,7 +67,7 @@ export interface AppRepository {
   ): Promise<number>;
   toggleShoppingListItem(itemId: number, checked: boolean): Promise<void>;
   listShoppingListsNeedingSync(): Promise<Array<{ id: number; name: string }>>;
-  listShoppingListsPendingDelete(): Promise<Array<{ id: number; remoteId: number | null }>>;
+  listShoppingListsPendingDelete(): Promise<Array<{ id: number; remoteId: number | null; role: string }>>;
   markShoppingListDeleted(listId: number): Promise<void>;
   purgeShoppingList(listId: number): Promise<void>;
   listShoppingListItemsNeedingSync(): Promise<Array<{

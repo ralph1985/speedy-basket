@@ -120,7 +120,7 @@ async function fetchLists(authToken: string) {
   }
   const res = await fetch(`${API_BASE_URL}/lists`, { headers });
   if (!res.ok) throw new Error('Failed to fetch lists');
-  return res.json() as Promise<Array<{ id: number; name: string }>>;
+  return res.json() as Promise<Array<{ id: number; name: string; role?: string }>>;
 }
 
 async function fetchListItems(listId: number, authToken: string, locale: string) {
@@ -192,7 +192,7 @@ async function deleteList(listId: number, authToken: string) {
     method: 'DELETE',
     headers,
   });
-  if (!res.ok && res.status !== 204) {
+  if (!res.ok && res.status !== 204 && res.status !== 404) {
     throw new Error('Failed to delete list');
   }
 }
@@ -390,11 +390,11 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
 
   const refreshLists = useCallback(async () => {
     const data = await repo.listShoppingLists();
-    const mapped = data.map((row) => ({
-      id: Number(row.id),
-      name: row.name,
-      role: row.remoteId ? 'owner' : 'owner',
-    }));
+      const mapped = data.map((row) => ({
+        id: Number(row.id),
+        name: row.name,
+        role: row.role ?? 'owner',
+      }));
     setLists(mapped);
     if (mapped.length > 0) {
       const hasActive = activeListId
@@ -484,11 +484,10 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       if (!token) return;
       const listsFromServer = await fetchLists(token);
       for (const list of listsFromServer) {
-        const isDeleted = await repo.isShoppingListDeletedByRemoteId(Number(list.id));
-        if (isDeleted) continue;
         const localListId = await repo.upsertShoppingListFromRemote({
           remoteId: Number(list.id),
           name: list.name,
+          role: list.role ?? 'viewer',
         });
         const items = await fetchListItems(Number(list.id), token, language);
         for (const item of items) {
@@ -546,6 +545,12 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const deleteShoppingList = useCallback(
     async (listId: number) => {
       try {
+        const list = (await repo.listShoppingLists()).find((row) => row.id === listId);
+        if (list && list.role !== 'owner') {
+          setStatusKey('status.listDeleteFailed');
+          setStatusParams({ message: 'Not owner' });
+          return;
+        }
         await repo.markShoppingListDeleted(listId);
         await refreshLists();
         if (activeListId === listId) {
@@ -940,15 +945,19 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       const pendingDeletes = await repo.listShoppingListsPendingDelete();
       for (const list of pendingDeletes) {
         const token = authToken.trim();
-        if (list.remoteId && token) {
-          try {
-            await deleteList(list.remoteId, token);
-          } catch (error) {
-            console.error('Failed to delete list remotely', error);
-            continue;
-          }
+        if (!list.remoteId) {
+          await repo.purgeShoppingList(list.id);
+          continue;
         }
-        await repo.purgeShoppingList(list.id);
+        if (!token) {
+          continue;
+        }
+        try {
+          await deleteList(list.remoteId, token);
+          await repo.purgeShoppingList(list.id);
+        } catch (error) {
+          console.error('Failed to delete list remotely', error);
+        }
       }
       await syncListsIfNeeded();
       const now = new Date().toISOString();

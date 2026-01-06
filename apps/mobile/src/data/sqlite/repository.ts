@@ -108,7 +108,7 @@ export class SqliteRepository implements AppRepository {
     return createShoppingListLocal(this.requireDb(), payload);
   }
 
-  async upsertShoppingListFromRemote(payload: { remoteId: number; name: string }) {
+  async upsertShoppingListFromRemote(payload: { remoteId: number; name: string; role: string }) {
     return upsertShoppingListFromRemote(this.requireDb(), payload);
   }
 

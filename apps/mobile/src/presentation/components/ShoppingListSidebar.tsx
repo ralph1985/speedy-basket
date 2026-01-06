@@ -12,7 +12,7 @@ type Props = {
   onSelectList: (listId: number) => void;
   onCreateList: (name: string) => Promise<void>;
   onDeleteList: (listId: number) => Promise<void>;
-  onGetListItemCount: (listId: number) => Promise<number>;
+  onGetListItemCount?: (listId: number) => Promise<number>;
   t: TFunction;
 };
 
@@ -21,6 +21,8 @@ export default function ShoppingListSidebar({
   activeListId,
   onSelectList,
   onCreateList,
+  onDeleteList,
+  onGetListItemCount,
   t,
 }: Props) {
   const [showCreate, setShowCreate] = useState(false);
@@ -41,8 +43,18 @@ export default function ShoppingListSidebar({
   };
 
   const openDelete = async (list: ShoppingList) => {
-    const count = await onGetListItemCount(list.id);
-    setDeleteCount(count);
+    if (!onGetListItemCount) {
+      setDeleteCount(0);
+      setDeleteTarget(list);
+      return;
+    }
+    try {
+      const count = await onGetListItemCount(list.id);
+      setDeleteCount(count);
+    } catch (error) {
+      console.error('Failed to load list item count', error);
+      setDeleteCount(0);
+    }
     setDeleteTarget(list);
   };
 
@@ -83,13 +95,15 @@ export default function ShoppingListSidebar({
               >
                 {item.name}
               </Button>
-              <IconButton
-                icon="trash-can-outline"
-                size={18}
-                iconColor={colors.textMuted}
-                onPress={() => openDelete(item)}
-                accessibilityLabel={t('action.deleteList')}
-              />
+              {item.role === 'owner' ? (
+                <IconButton
+                  icon="trash-can-outline"
+                  size={18}
+                  iconColor={colors.textMuted}
+                  onPress={() => openDelete(item)}
+                  accessibilityLabel={t('action.deleteList')}
+                />
+              ) : null}
             </View>
           )}
         />

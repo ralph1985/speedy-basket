@@ -81,6 +81,7 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       remote_id INTEGER,
       name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'owner',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       synced_at TEXT,
@@ -124,6 +125,11 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
   if (!hasDeletedAt) {
     await db.execAsync('ALTER TABLE shopping_lists ADD COLUMN deleted_at TEXT');
   }
+  const hasRole = listColumns.some((column) => column.name === 'role');
+  if (!hasRole) {
+    await db.execAsync("ALTER TABLE shopping_lists ADD COLUMN role TEXT NOT NULL DEFAULT 'owner'");
+    await db.execAsync("UPDATE shopping_lists SET role = 'owner' WHERE role IS NULL");
+  }
 }
 
 export async function getStoreCount(db: SQLite.SQLiteDatabase) {
@@ -138,9 +144,9 @@ export async function listStores(db: SQLite.SQLiteDatabase) {
 }
 
 export async function listShoppingLists(db: SQLite.SQLiteDatabase) {
-  return db.getAllAsync<{ id: number; name: string; remoteId: number | null }>(
+  return db.getAllAsync<{ id: number; name: string; role: string; remoteId: number | null }>(
     `
-    SELECT id, name, remote_id as remoteId
+    SELECT id, name, role, remote_id as remoteId
     FROM shopping_lists
     WHERE deleted_at IS NULL
     ORDER BY created_at DESC
@@ -154,19 +160,20 @@ export async function createShoppingListLocal(
 ) {
   const now = new Date().toISOString();
   const result = await db.runAsync(
-    'INSERT INTO shopping_lists (name, created_at, updated_at, deleted_at) VALUES (?, ?, ?, NULL)',
+    "INSERT INTO shopping_lists (name, role, created_at, updated_at, deleted_at) VALUES (?, 'owner', ?, ?, NULL)",
     [payload.name, now, now]
   );
   return {
     id: result.lastInsertRowId ?? 0,
     name: payload.name,
+    role: 'owner',
     remoteId: null,
   };
 }
 
 export async function upsertShoppingListFromRemote(
   db: SQLite.SQLiteDatabase,
-  payload: { remoteId: number; name: string }
+  payload: { remoteId: number; name: string; role: string }
 ) {
   const now = new Date().toISOString();
   const existing = await db.getFirstAsync<{ id: number }>(
@@ -175,14 +182,14 @@ export async function upsertShoppingListFromRemote(
   );
   if (existing?.id) {
     await db.runAsync(
-      'UPDATE shopping_lists SET name = ?, updated_at = ?, synced_at = ? WHERE id = ?',
-      [payload.name, now, now, existing.id]
+      'UPDATE shopping_lists SET name = ?, role = ?, updated_at = ?, synced_at = ? WHERE id = ?',
+      [payload.name, payload.role, now, now, existing.id]
     );
     return existing.id;
   }
   const result = await db.runAsync(
-    'INSERT INTO shopping_lists (remote_id, name, created_at, updated_at, synced_at, deleted_at) VALUES (?, ?, ?, ?, ?, NULL)',
-    [payload.remoteId, payload.name, now, now, now]
+    "INSERT INTO shopping_lists (remote_id, name, role, created_at, updated_at, synced_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, NULL)",
+    [payload.remoteId, payload.name, payload.role, now, now, now]
   );
   return result.lastInsertRowId ?? 0;
 }
@@ -338,9 +345,10 @@ export async function listShoppingListsPendingDelete(db: SQLite.SQLiteDatabase) 
   return db.getAllAsync<{
     id: number;
     remoteId: number | null;
+    role: string;
   }>(
     `
-    SELECT id, remote_id as remoteId
+    SELECT id, remote_id as remoteId, role
     FROM shopping_lists
     WHERE deleted_at IS NOT NULL
     `
