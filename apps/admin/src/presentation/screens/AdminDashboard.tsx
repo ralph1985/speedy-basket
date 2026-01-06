@@ -455,11 +455,11 @@ export function AdminDashboard({
                       {user.id}
                     </Text>
                     <Text fontSize="xs" color="#cbd5f5" mt={2}>
-                      Cestas: {user.list_count}
+                      Cestas: {user.list_count ?? 0}
                     </Text>
-                    {user.lists.length > 0 ? (
+                    {(user.lists ?? []).length > 0 ? (
                       <HStack spacing={2} mt={2} flexWrap="wrap">
-                        {user.lists.map((list) => (
+                        {(user.lists ?? []).map((list) => (
                           <Badge
                             key={list.id}
                             variant="subtle"

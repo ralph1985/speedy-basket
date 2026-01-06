@@ -41,6 +41,7 @@ Incluye:
 - GET /categories?lang=es|en (auth requerida): lista categorias base + del usuario.
 - GET /lists (auth requerida): lista cestas del usuario.
 - GET /lists/:id/items?lang=es|en (auth requerida): items con nombre traducido.
+- GET /admin/users (admin_god): usuarios con roles + cestas (lists, list_count).
 
 ## Offline-first (app)
 
