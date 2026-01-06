@@ -99,7 +99,7 @@ async function postProduct(
   return res.json();
 }
 
-async function postList(payload: { name: string; storeId?: number | null }, authToken: string) {
+async function postList(payload: { name: string }, authToken: string) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (authToken) {
     headers.Authorization = `Bearer ${authToken}`;
@@ -345,7 +345,6 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     const mapped = data.map((row) => ({
       id: Number(row.id),
       name: row.name,
-      storeId: row.storeId ?? null,
       role: row.remoteId ? 'owner' : 'owner',
     }));
     setLists(mapped);
@@ -389,7 +388,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       const pendingLists = await repo.listShoppingListsNeedingSync();
       for (const list of pendingLists) {
         try {
-          const created = await postList({ name: list.name, storeId: list.storeId }, token);
+          const created = await postList({ name: list.name }, token);
           const remoteId = Number(created.id);
           if (!Number.isNaN(remoteId)) {
             await repo.setShoppingListRemoteId(list.id, remoteId);
@@ -444,8 +443,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const createShoppingList = useCallback(
     async (name: string) => {
       try {
-        const storeId = activeStoreId ?? fallbackStoreId(pack);
-        const created = await repo.createShoppingList({ name, storeId });
+        const created = await repo.createShoppingList({ name });
         await refreshLists();
         setActiveListIdState(Number(created.id));
         setStatusKey('status.listCreated');
@@ -457,7 +455,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
         setStatusParams({ message });
       }
     },
-    [activeStoreId, pack, refreshListItems, refreshLists, repo]
+    [refreshListItems, refreshLists, repo]
   );
 
   const addShoppingListItem = useCallback(

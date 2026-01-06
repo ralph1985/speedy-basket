@@ -97,7 +97,7 @@ export class SqliteRepository implements AppRepository {
     return listShoppingLists(this.requireDb());
   }
 
-  async createShoppingList(payload: { name: string; storeId: number | null }) {
+  async createShoppingList(payload: { name: string }) {
     return createShoppingListLocal(this.requireDb(), payload);
   }
 

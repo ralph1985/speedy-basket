@@ -27,7 +27,6 @@ export type StoreItem = {
 export type ShoppingList = {
   id: number;
   name: string;
-  storeId: number | null;
   role: string;
 };
 

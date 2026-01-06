@@ -81,11 +81,9 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       remote_id INTEGER,
       name TEXT NOT NULL,
-      store_id INTEGER,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      synced_at TEXT,
-      FOREIGN KEY(store_id) REFERENCES stores(id)
+      synced_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS shopping_list_items (
@@ -131,24 +129,23 @@ export async function listStores(db: SQLite.SQLiteDatabase) {
 }
 
 export async function listShoppingLists(db: SQLite.SQLiteDatabase) {
-  return db.getAllAsync<{ id: number; name: string; storeId: number | null; remoteId: number | null }>(
-    'SELECT id, name, store_id as storeId, remote_id as remoteId FROM shopping_lists ORDER BY created_at DESC'
+  return db.getAllAsync<{ id: number; name: string; remoteId: number | null }>(
+    'SELECT id, name, remote_id as remoteId FROM shopping_lists ORDER BY created_at DESC'
   );
 }
 
 export async function createShoppingListLocal(
   db: SQLite.SQLiteDatabase,
-  payload: { name: string; storeId: number | null }
+  payload: { name: string }
 ) {
   const now = new Date().toISOString();
   const result = await db.runAsync(
-    'INSERT INTO shopping_lists (name, store_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
-    [payload.name, payload.storeId, now, now]
+    'INSERT INTO shopping_lists (name, created_at, updated_at) VALUES (?, ?, ?)',
+    [payload.name, now, now]
   );
   return {
     id: result.lastInsertRowId ?? 0,
     name: payload.name,
-    storeId: payload.storeId,
     remoteId: null,
   };
 }
@@ -214,8 +211,7 @@ export async function listShoppingListsNeedingSync(db: SQLite.SQLiteDatabase) {
   return db.getAllAsync<{
     id: number;
     name: string;
-    storeId: number | null;
-  }>('SELECT id, name, store_id as storeId FROM shopping_lists WHERE remote_id IS NULL');
+  }>('SELECT id, name FROM shopping_lists WHERE remote_id IS NULL');
 }
 
 export async function listShoppingListItemsNeedingSync(db: SQLite.SQLiteDatabase) {

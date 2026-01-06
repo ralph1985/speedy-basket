@@ -8,7 +8,6 @@ const itemIdSchema = z.coerce.number().int().positive();
 
 const createListSchema = z.object({
   name: z.string().trim().min(1),
-  storeId: z.number().int().positive().optional(),
 });
 
 const createItemSchema = z.object({
@@ -38,7 +37,6 @@ export function registerListsRoutes(server: FastifyInstance) {
       const result = await client.query<{
         id: number;
         name: string;
-        store_id: number | null;
         owner_id: string;
         role: string | null;
       }>(
@@ -46,7 +44,6 @@ export function registerListsRoutes(server: FastifyInstance) {
         SELECT
           l.id,
           l.name,
-          l.store_id,
           l.owner_id,
           CASE WHEN l.owner_id = $1 THEN 'owner' ELSE m.role END as role
         FROM shopping_lists l
@@ -60,7 +57,6 @@ export function registerListsRoutes(server: FastifyInstance) {
       return result.rows.map((row) => ({
         id: Number(row.id),
         name: row.name,
-        storeId: row.store_id ? Number(row.store_id) : null,
         ownerId: row.owner_id,
         role: row.role ?? 'viewer',
       }));
@@ -70,7 +66,7 @@ export function registerListsRoutes(server: FastifyInstance) {
   server.post(
     '/lists',
     async (
-      request: FastifyRequest<{ Body: { name: string; storeId?: number } }>,
+      request: FastifyRequest<{ Body: { name: string } }>,
       reply: FastifyReply
     ) => {
       const userId = await getAuthUserId(request);
@@ -78,15 +74,14 @@ export function registerListsRoutes(server: FastifyInstance) {
         reply.code(401).send({ error: 'Unauthorized' });
         return;
       }
-      const { name, storeId } = createListSchema.parse(request.body);
+      const { name } = createListSchema.parse(request.body);
       return withAuthClient(userId, async (client) => {
         const listResult = await client.query<{
           id: number;
           name: string;
-          store_id: number | null;
         }>(
-          'INSERT INTO shopping_lists (owner_id, name, store_id) VALUES ($1, $2, $3) RETURNING id, name, store_id',
-          [userId, name, storeId ?? null]
+          'INSERT INTO shopping_lists (owner_id, name) VALUES ($1, $2) RETURNING id, name',
+          [userId, name]
         );
         const created = listResult.rows[0];
         await client.query(
@@ -96,7 +91,6 @@ export function registerListsRoutes(server: FastifyInstance) {
         return {
           id: Number(created.id),
           name: created.name,
-          storeId: created.store_id ? Number(created.store_id) : null,
           ownerId: userId,
           role: 'owner',
         };

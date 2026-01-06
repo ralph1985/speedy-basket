@@ -31,11 +31,10 @@ export interface AppRepository {
     storeId: number,
     locale: string
   ): Promise<ProductDetail | null>;
-  listShoppingLists(): Promise<Array<{ id: number; name: string; storeId: number | null; remoteId: number | null }>>;
-  createShoppingList(payload: { name: string; storeId: number | null }): Promise<{
+  listShoppingLists(): Promise<Array<{ id: number; name: string; remoteId: number | null }>>;
+  createShoppingList(payload: { name: string }): Promise<{
     id: number;
     name: string;
-    storeId: number | null;
     remoteId: number | null;
   }>;
   listShoppingListItems(
@@ -55,7 +54,7 @@ export interface AppRepository {
     payload: { productId?: number; label?: string; qty?: string | null }
   ): Promise<number>;
   toggleShoppingListItem(itemId: number, checked: boolean): Promise<void>;
-  listShoppingListsNeedingSync(): Promise<Array<{ id: number; name: string; storeId: number | null }>>;
+  listShoppingListsNeedingSync(): Promise<Array<{ id: number; name: string }>>;
   listShoppingListItemsNeedingSync(): Promise<Array<{
     id: number;
     listId: number;
