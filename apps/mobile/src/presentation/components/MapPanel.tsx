@@ -1,17 +1,29 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { RadioButton } from 'react-native-paper';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import type { ZoneItem } from '@domain/types';
 import colors from '@presentation/styles/colors';
 import type { TFunction } from '@presentation/i18n';
 
 type Props = {
+  stores: Array<{ id: number; name: string }>;
+  activeStoreId: number | null;
+  onChangeStore: (storeId: number) => void;
   zones: ZoneItem[];
   activeZoneId: number | null;
   onSelectZone: (zoneId: number) => void;
   t: TFunction;
 };
 
-export default function MapPanel({ zones, activeZoneId, onSelectZone, t }: Props) {
+export default function MapPanel({
+  stores,
+  activeStoreId,
+  onChangeStore,
+  zones,
+  activeZoneId,
+  onSelectZone,
+  t,
+}: Props) {
   const columns = 2;
   const cellWidth = 120;
   const cellHeight = 80;
@@ -22,6 +34,19 @@ export default function MapPanel({ zones, activeZoneId, onSelectZone, t }: Props
 
   return (
     <View style={styles.panel}>
+      <View style={styles.section}>
+        <Text style={styles.meta}>{t('settings.store')}</Text>
+        <RadioButton.Group
+          value={activeStoreId ? `${activeStoreId}` : ''}
+          onValueChange={(value) => {
+            if (value) onChangeStore(Number(value));
+          }}
+        >
+          {stores.map((store) => (
+            <RadioButton.Item key={store.id} label={store.name} value={`${store.id}`} />
+          ))}
+        </RadioButton.Group>
+      </View>
       <Text style={styles.meta}>
         {t('label.activeZone')}: {activeZoneId ?? '-'}
       </Text>
@@ -85,5 +110,8 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 12,
     paddingTop: 6,
+  },
+  section: {
+    gap: 8,
   },
 });

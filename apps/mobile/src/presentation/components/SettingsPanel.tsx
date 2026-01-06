@@ -1,12 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Button, RadioButton, SegmentedButtons } from 'react-native-paper';
+import { Button, SegmentedButtons } from 'react-native-paper';
 import type { Language, TFunction } from '@presentation/i18n';
 import colors from '@presentation/styles/colors';
 
 type Props = {
-  stores: Array<{ id: number; name: string }>;
-  activeStoreId: number | null;
-  onChangeStore: (storeId: number) => void;
   language: Language;
   onChangeLanguage: (language: Language) => void;
   onSignOut: () => void;
@@ -14,9 +11,6 @@ type Props = {
 };
 
 export default function SettingsPanel({
-  stores,
-  activeStoreId,
-  onChangeStore,
   language,
   onChangeLanguage,
   onSignOut,
@@ -35,23 +29,6 @@ export default function SettingsPanel({
             { value: 'en', label: t('language.en') },
           ]}
         />
-      </View>
-      <View style={styles.section}>
-        <Text style={styles.meta}>{t('settings.store')}</Text>
-        <RadioButton.Group
-          value={activeStoreId ? `${activeStoreId}` : ''}
-          onValueChange={(value) => {
-            if (value) onChangeStore(Number(value));
-          }}
-        >
-          {stores.map((store) => (
-            <RadioButton.Item
-              key={store.id}
-              label={store.name}
-              value={`${store.id}`}
-            />
-          ))}
-        </RadioButton.Group>
       </View>
       <View style={styles.section}>
         <Text style={styles.meta}>{t('settings.account')}</Text>
