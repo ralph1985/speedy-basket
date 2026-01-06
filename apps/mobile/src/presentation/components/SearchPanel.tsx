@@ -74,6 +74,9 @@ export default function SearchPanel({
         )}
         contentContainerStyle={styles.list}
       />
+      {products.length === 0 ? (
+        <Text style={styles.emptyText}>{t('search.empty')}</Text>
+      ) : null}
       <Portal>
         <Dialog visible={showCreate} onDismiss={() => setShowCreate(false)}>
           <Dialog.Title>{t('action.addProduct')}</Dialog.Title>
@@ -154,6 +157,10 @@ const styles = StyleSheet.create({
   },
   dialogInput: {
     marginBottom: 12,
+  },
+  emptyText: {
+    color: colors.textSoft,
+    marginTop: 8,
   },
   list: {
     gap: 10,

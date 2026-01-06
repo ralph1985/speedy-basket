@@ -11,6 +11,7 @@ const colors = {
   text: '#1f1a14',
   textMuted: '#5e5448',
   textSoft: '#7a6f62',
+  overlay: 'rgba(8, 10, 16, 0.5)',
 };
 
 export default colors;

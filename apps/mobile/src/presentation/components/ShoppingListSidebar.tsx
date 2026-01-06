@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Dialog, Portal, TextInput } from 'react-native-paper';
 import type { ShoppingList } from '@domain/types';
 import colors from '@presentation/styles/colors';
@@ -10,7 +11,6 @@ type Props = {
   activeListId: number | null;
   onSelectList: (listId: number) => void;
   onCreateList: (name: string) => Promise<void>;
-  onShareMember: (payload: { userId: string; role?: 'owner' | 'editor' | 'viewer' }) => Promise<void>;
   t: TFunction;
 };
 
@@ -19,16 +19,11 @@ export default function ShoppingListSidebar({
   activeListId,
   onSelectList,
   onCreateList,
-  onShareMember,
   t,
 }: Props) {
   const [showCreate, setShowCreate] = useState(false);
-  const [showShare, setShowShare] = useState(false);
   const [newListName, setNewListName] = useState('');
-  const [memberUserId, setMemberUserId] = useState('');
-  const [memberRole, setMemberRole] = useState<'owner' | 'editor' | 'viewer'>('editor');
   const [isCreating, setIsCreating] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
 
   const handleCreate = async () => {
     const name = newListName.trim();
@@ -40,29 +35,10 @@ export default function ShoppingListSidebar({
     setNewListName('');
   };
 
-  const handleShare = async () => {
-    const userId = memberUserId.trim();
-    if (!userId) return;
-    setIsSharing(true);
-    await onShareMember({ userId, role: memberRole });
-    setIsSharing(false);
-    setShowShare(false);
-    setMemberUserId('');
-    setMemberRole('editor');
-  };
-
   return (
-    <View style={styles.sidebar}>
+    <SafeAreaView style={styles.sidebar} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Text style={styles.title}>{t('list.title')}</Text>
-        <View style={styles.headerActions}>
-          <Button mode="outlined" onPress={() => setShowShare(true)} compact>
-            {t('action.share')}
-          </Button>
-          <Button mode="contained" onPress={() => setShowCreate(true)} compact>
-            {t('action.newList')}
-          </Button>
-        </View>
       </View>
 
       {lists.length === 0 ? (
@@ -86,6 +62,12 @@ export default function ShoppingListSidebar({
         />
       )}
 
+      <View style={styles.footer}>
+        <Button mode="contained" onPress={() => setShowCreate(true)}>
+          {t('action.newList')}
+        </Button>
+      </View>
+
       <Portal>
         <Dialog visible={showCreate} onDismiss={() => setShowCreate(false)}>
           <Dialog.Title>{t('action.newList')}</Dialog.Title>
@@ -104,38 +86,8 @@ export default function ShoppingListSidebar({
             </Button>
           </Dialog.Actions>
         </Dialog>
-
-        <Dialog visible={showShare} onDismiss={() => setShowShare(false)}>
-          <Dialog.Title>{t('action.share')}</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              label={t('label.userId')}
-              value={memberUserId}
-              onChangeText={setMemberUserId}
-              mode="outlined"
-            />
-            <View style={styles.roleRow}>
-              {(['owner', 'editor', 'viewer'] as const).map((role) => (
-                <Button
-                  key={role}
-                  mode={memberRole === role ? 'contained' : 'outlined'}
-                  onPress={() => setMemberRole(role)}
-                  compact
-                >
-                  {t(`role.${role}`)}
-                </Button>
-              ))}
-            </View>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowShare(false)}>{t('action.cancel')}</Button>
-            <Button onPress={handleShare} disabled={!memberUserId.trim() || isSharing}>
-              {isSharing ? t('action.creating') : t('action.add')}
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
       </Portal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -144,11 +96,10 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     marginTop: 8,
   },
-  header: {
-    gap: 8,
+  footer: {
+    paddingTop: 12,
   },
-  headerActions: {
-    flexDirection: 'row',
+  header: {
     gap: 8,
   },
   list: {
@@ -161,17 +112,13 @@ const styles = StyleSheet.create({
   listButtonLabel: {
     fontSize: 12,
   },
-  roleRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
   sidebar: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
+    flex: 1,
+    justifyContent: 'space-between',
     padding: 16,
   },
   title: {
