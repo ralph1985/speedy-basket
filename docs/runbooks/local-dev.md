@@ -4,6 +4,7 @@
 
 - Node + pnpm
 - Expo Go (movil)
+- Variables de entorno en `.env` (ver `.env.example`)
 
 ## Comandos
 
@@ -13,6 +14,7 @@
 - Reset: `pnpm db:reset`
 - Seed: `pnpm db:seed`
 - Export pack (desde Supabase): `pnpm --filter api exec tsx scripts/export-pack.ts`
+- Schema dump (Supabase): ver `docs/runbooks/schema-dump.md`
 
 ## Backend local desde el movil
 
