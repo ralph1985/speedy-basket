@@ -32,6 +32,7 @@ Incluye:
 - POST /products (auth requerida): crea producto generico (name, category?).
   - tambien crea la traduccion en el locale enviado.
 - POST /lists (auth requerida): crea cesta (name). Ya no se asocia a tienda.
+- DELETE /lists/:id (auth requerida): borra cesta (solo owner).
 - POST /lists/:id/items (auth requerida): agrega item (productId? o label).
 - PATCH /lists/:id/items/:itemId (auth requerida): marca comprado (checked).
 - POST /lists/:id/members (auth requerida): comparte con otro usuario (userId, role).
@@ -50,6 +51,7 @@ Incluye:
   - Se envian productos locales y se remapean ids en SQLite.
   - Se hace pull de cestas/items desde el backend para reflejar cambios compartidos.
   - Se envian cestas e items pendientes cuando ya existe el id remoto.
+  - Se borran cestas locales marcadas como borradas.
 - La UI muestra "pendiente de sync" para productos locales.
 
 ## Conflictos

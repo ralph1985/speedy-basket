@@ -29,11 +29,16 @@ import {
   listShoppingLists,
   createShoppingListLocal,
   upsertShoppingListFromRemote,
+  isShoppingListDeletedByRemoteId,
   listShoppingListItems,
   upsertShoppingListItemFromRemote,
   addShoppingListItemLocal,
   toggleShoppingListItemLocal,
+  getShoppingListItemCount,
   listShoppingListsNeedingSync,
+  listShoppingListsPendingDelete,
+  markShoppingListDeleted,
+  purgeShoppingList,
   listShoppingListItemsNeedingSync,
   setShoppingListRemoteId,
   getShoppingListRemoteId,
@@ -107,6 +112,10 @@ export class SqliteRepository implements AppRepository {
     return upsertShoppingListFromRemote(this.requireDb(), payload);
   }
 
+  async isShoppingListDeletedByRemoteId(remoteId: number) {
+    return isShoppingListDeletedByRemoteId(this.requireDb(), remoteId);
+  }
+
   async listShoppingListItems(listId: number, locale: string) {
     return listShoppingListItems(this.requireDb(), listId, locale);
   }
@@ -122,6 +131,10 @@ export class SqliteRepository implements AppRepository {
     return upsertShoppingListItemFromRemote(this.requireDb(), payload);
   }
 
+  async getShoppingListItemCount(listId: number) {
+    return getShoppingListItemCount(this.requireDb(), listId);
+  }
+
   async addShoppingListItem(
     listId: number,
     payload: { productId?: number; label?: string; qty?: string | null }
@@ -135,6 +148,18 @@ export class SqliteRepository implements AppRepository {
 
   async listShoppingListsNeedingSync() {
     return listShoppingListsNeedingSync(this.requireDb());
+  }
+
+  async listShoppingListsPendingDelete() {
+    return listShoppingListsPendingDelete(this.requireDb());
+  }
+
+  async markShoppingListDeleted(listId: number) {
+    return markShoppingListDeleted(this.requireDb(), listId);
+  }
+
+  async purgeShoppingList(listId: number) {
+    return purgeShoppingList(this.requireDb(), listId);
   }
 
   async listShoppingListItemsNeedingSync() {

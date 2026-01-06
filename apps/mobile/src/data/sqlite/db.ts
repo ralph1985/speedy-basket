@@ -83,7 +83,8 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
       name TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      synced_at TEXT
+      synced_at TEXT,
+      deleted_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS shopping_list_items (
@@ -115,6 +116,14 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_shopping_lists_remote ON shopping_lists (remote_id);
     CREATE INDEX IF NOT EXISTS idx_shopping_list_items_list ON shopping_list_items (list_id);
   `);
+
+  const listColumns = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(shopping_lists)'
+  );
+  const hasDeletedAt = listColumns.some((column) => column.name === 'deleted_at');
+  if (!hasDeletedAt) {
+    await db.execAsync('ALTER TABLE shopping_lists ADD COLUMN deleted_at TEXT');
+  }
 }
 
 export async function getStoreCount(db: SQLite.SQLiteDatabase) {
@@ -130,7 +139,12 @@ export async function listStores(db: SQLite.SQLiteDatabase) {
 
 export async function listShoppingLists(db: SQLite.SQLiteDatabase) {
   return db.getAllAsync<{ id: number; name: string; remoteId: number | null }>(
-    'SELECT id, name, remote_id as remoteId FROM shopping_lists ORDER BY created_at DESC'
+    `
+    SELECT id, name, remote_id as remoteId
+    FROM shopping_lists
+    WHERE deleted_at IS NULL
+    ORDER BY created_at DESC
+    `
   );
 }
 
@@ -140,7 +154,7 @@ export async function createShoppingListLocal(
 ) {
   const now = new Date().toISOString();
   const result = await db.runAsync(
-    'INSERT INTO shopping_lists (name, created_at, updated_at) VALUES (?, ?, ?)',
+    'INSERT INTO shopping_lists (name, created_at, updated_at, deleted_at) VALUES (?, ?, ?, NULL)',
     [payload.name, now, now]
   );
   return {
@@ -167,10 +181,21 @@ export async function upsertShoppingListFromRemote(
     return existing.id;
   }
   const result = await db.runAsync(
-    'INSERT INTO shopping_lists (remote_id, name, created_at, updated_at, synced_at) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO shopping_lists (remote_id, name, created_at, updated_at, synced_at, deleted_at) VALUES (?, ?, ?, ?, ?, NULL)',
     [payload.remoteId, payload.name, now, now, now]
   );
   return result.lastInsertRowId ?? 0;
+}
+
+export async function isShoppingListDeletedByRemoteId(
+  db: SQLite.SQLiteDatabase,
+  remoteId: number
+) {
+  const row = await db.getFirstAsync<{ deleted_at: string | null }>(
+    'SELECT deleted_at FROM shopping_lists WHERE remote_id = ?',
+    [remoteId]
+  );
+  return Boolean(row?.deleted_at);
 }
 
 export async function listShoppingListItems(db: SQLite.SQLiteDatabase, listId: number, locale: string) {
@@ -282,6 +307,14 @@ export async function addShoppingListItemLocal(
   return result.lastInsertRowId ?? 0;
 }
 
+export async function getShoppingListItemCount(db: SQLite.SQLiteDatabase, listId: number) {
+  const row = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM shopping_list_items WHERE list_id = ?',
+    [listId]
+  );
+  return row?.count ?? 0;
+}
+
 export async function toggleShoppingListItemLocal(
   db: SQLite.SQLiteDatabase,
   itemId: number,
@@ -298,7 +331,34 @@ export async function listShoppingListsNeedingSync(db: SQLite.SQLiteDatabase) {
   return db.getAllAsync<{
     id: number;
     name: string;
-  }>('SELECT id, name FROM shopping_lists WHERE remote_id IS NULL');
+  }>('SELECT id, name FROM shopping_lists WHERE remote_id IS NULL AND deleted_at IS NULL');
+}
+
+export async function listShoppingListsPendingDelete(db: SQLite.SQLiteDatabase) {
+  return db.getAllAsync<{
+    id: number;
+    remoteId: number | null;
+  }>(
+    `
+    SELECT id, remote_id as remoteId
+    FROM shopping_lists
+    WHERE deleted_at IS NOT NULL
+    `
+  );
+}
+
+export async function markShoppingListDeleted(db: SQLite.SQLiteDatabase, listId: number) {
+  const now = new Date().toISOString();
+  await db.runAsync('UPDATE shopping_lists SET deleted_at = ?, updated_at = ? WHERE id = ?', [
+    now,
+    now,
+    listId,
+  ]);
+}
+
+export async function purgeShoppingList(db: SQLite.SQLiteDatabase, listId: number) {
+  await db.runAsync('DELETE FROM shopping_list_items WHERE list_id = ?', [listId]);
+  await db.runAsync('DELETE FROM shopping_lists WHERE id = ?', [listId]);
 }
 
 export async function listShoppingListItemsNeedingSync(db: SQLite.SQLiteDatabase) {

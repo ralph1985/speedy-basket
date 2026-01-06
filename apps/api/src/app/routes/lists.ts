@@ -98,6 +98,32 @@ export function registerListsRoutes(server: FastifyInstance) {
     }
   );
 
+  server.delete(
+    '/lists/:listId',
+    async (
+      request: FastifyRequest<{ Params: { listId: string } }>,
+      reply: FastifyReply
+    ) => {
+      const userId = await getAuthUserId(request);
+      if (!userId) {
+        reply.code(401).send({ error: 'Unauthorized' });
+        return;
+      }
+      const listId = listIdSchema.parse(request.params.listId);
+      return withAuthClient(userId, async (client) => {
+        const result = await client.query<{ id: number }>(
+          'DELETE FROM shopping_lists WHERE id = $1 AND owner_id = $2 RETURNING id',
+          [listId, userId]
+        );
+        if (result.rowCount === 0) {
+          reply.code(404).send({ error: 'List not found' });
+          return;
+        }
+        reply.code(204).send();
+      });
+    }
+  );
+
   server.get(
     '/lists/:listId/items',
     async (

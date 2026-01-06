@@ -8,6 +8,8 @@ const colors = {
   onSecondary: '#ffffff',
   surface: '#ffffff',
   surfaceAlt: '#f2ebe2',
+  danger: '#b32e2e',
+  warning: '#c17a1a',
   text: '#1f1a14',
   textMuted: '#5e5448',
   textSoft: '#7a6f62',

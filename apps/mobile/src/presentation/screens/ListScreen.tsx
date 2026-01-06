@@ -15,6 +15,8 @@ export default function ListScreen() {
     activeListId,
     setActiveListId,
     createShoppingList,
+    deleteShoppingList,
+    getShoppingListItemCount,
     listItems,
     addShoppingListItem,
     toggleShoppingListItem,
@@ -89,6 +91,8 @@ export default function ListScreen() {
               activeListId={activeListId}
               onSelectList={handleSelectList}
               onCreateList={createShoppingList}
+              onDeleteList={deleteShoppingList}
+              onGetListItemCount={getShoppingListItemCount}
               t={t}
             />
           </View>
@@ -148,6 +152,8 @@ export default function ListScreen() {
                 activeListId={activeListId}
                 onSelectList={handleSelectList}
                 onCreateList={createShoppingList}
+                onDeleteList={deleteShoppingList}
+                onGetListItemCount={getShoppingListItemCount}
                 t={t}
               />
             </Animated.View>

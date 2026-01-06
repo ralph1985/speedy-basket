@@ -38,6 +38,7 @@ export interface AppRepository {
     remoteId: number | null;
   }>;
   upsertShoppingListFromRemote(payload: { remoteId: number; name: string }): Promise<number>;
+  isShoppingListDeletedByRemoteId(remoteId: number): Promise<boolean>;
   listShoppingListItems(
     listId: number,
     locale: string
@@ -58,12 +59,16 @@ export interface AppRepository {
     qty: string | null;
     checked: boolean;
   }): Promise<number>;
+  getShoppingListItemCount(listId: number): Promise<number>;
   addShoppingListItem(
     listId: number,
     payload: { productId?: number; label?: string; qty?: string | null }
   ): Promise<number>;
   toggleShoppingListItem(itemId: number, checked: boolean): Promise<void>;
   listShoppingListsNeedingSync(): Promise<Array<{ id: number; name: string }>>;
+  listShoppingListsPendingDelete(): Promise<Array<{ id: number; remoteId: number | null }>>;
+  markShoppingListDeleted(listId: number): Promise<void>;
+  purgeShoppingList(listId: number): Promise<void>;
   listShoppingListItemsNeedingSync(): Promise<Array<{
     id: number;
     listId: number;

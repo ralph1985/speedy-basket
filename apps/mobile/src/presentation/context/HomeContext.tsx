@@ -183,6 +183,20 @@ async function patchListItem(
   return res.json();
 }
 
+async function deleteList(listId: number, authToken: string) {
+  const headers: Record<string, string> = {};
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  const res = await fetch(`${API_BASE_URL}/lists/${listId}`, {
+    method: 'DELETE',
+    headers,
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error('Failed to delete list');
+  }
+}
+
 type HomeContextValue = {
   t: TFunction;
   language: Language;
@@ -213,6 +227,8 @@ type HomeContextValue = {
   createShoppingList: (name: string) => Promise<void>;
   addShoppingListItem: (payload: { productId?: number; label?: string }) => Promise<void>;
   toggleShoppingListItem: (itemId: number, checked: boolean) => Promise<void>;
+  getShoppingListItemCount: (listId: number) => Promise<number>;
+  deleteShoppingList: (listId: number) => Promise<void>;
   zones: ZoneItem[];
   selectedZoneId: number | null;
   setSelectedZoneId: (zoneId: number) => void;
@@ -468,6 +484,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       if (!token) return;
       const listsFromServer = await fetchLists(token);
       for (const list of listsFromServer) {
+        const isDeleted = await repo.isShoppingListDeletedByRemoteId(Number(list.id));
+        if (isDeleted) continue;
         const localListId = await repo.upsertShoppingListFromRemote({
           remoteId: Number(list.id),
           name: list.name,
@@ -516,6 +534,34 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       }
     },
     [refreshListItems, refreshLists, repo]
+  );
+
+  const getShoppingListItemCount = useCallback(
+    async (listId: number) => {
+      return repo.getShoppingListItemCount(listId);
+    },
+    [repo]
+  );
+
+  const deleteShoppingList = useCallback(
+    async (listId: number) => {
+      try {
+        await repo.markShoppingListDeleted(listId);
+        await refreshLists();
+        if (activeListId === listId) {
+          const next = await repo.listShoppingLists();
+          setActiveListIdState(next[0]?.id ?? null);
+          await refreshListItems(next[0]?.id ?? null);
+        }
+        setStatusKey('status.listDeleted');
+        setStatusParams({});
+      } catch (error) {
+        const message = getErrorMessage(error);
+        setStatusKey('status.listDeleteFailed');
+        setStatusParams({ message });
+      }
+    },
+    [activeListId, refreshListItems, refreshLists, repo]
   );
 
   const addShoppingListItem = useCallback(
@@ -891,6 +937,19 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       await refreshDevData();
       await syncProductsIfNeeded();
       await pullListsIfNeeded();
+      const pendingDeletes = await repo.listShoppingListsPendingDelete();
+      for (const list of pendingDeletes) {
+        const token = authToken.trim();
+        if (list.remoteId && token) {
+          try {
+            await deleteList(list.remoteId, token);
+          } catch (error) {
+            console.error('Failed to delete list remotely', error);
+            continue;
+          }
+        }
+        await repo.purgeShoppingList(list.id);
+      }
       await syncListsIfNeeded();
       const now = new Date().toISOString();
       await repo.setMetaValue('sync_last_at', now);
@@ -1014,6 +1073,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       createShoppingList,
       addShoppingListItem,
       toggleShoppingListItem,
+      getShoppingListItemCount,
+      deleteShoppingList,
       zones,
       selectedZoneId,
       setSelectedZoneId,
@@ -1069,6 +1130,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       createShoppingList,
       addShoppingListItem,
       toggleShoppingListItem,
+      getShoppingListItemCount,
+      deleteShoppingList,
       refreshCategories,
       refreshDevData,
       search,
