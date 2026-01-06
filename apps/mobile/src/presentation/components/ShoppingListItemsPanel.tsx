@@ -55,9 +55,16 @@ export default function ShoppingListItemsPanel({
                   onPress={() => onToggleItem(item.id, !item.checked)}
                 />
                 <View style={styles.itemTextWrapper}>
-                  <Text style={[styles.itemText, item.checked && styles.itemTextChecked]}>
-                    {item.label}
-                  </Text>
+                  <View style={styles.itemTitleRow}>
+                    <Text style={[styles.itemText, item.checked && styles.itemTextChecked]}>
+                      {item.label}
+                    </Text>
+                    {item.productId && item.productId < 0 ? (
+                      <View style={styles.pendingBadge}>
+                        <Text style={styles.pendingBadgeText}>{t('product.pending')}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                   {item.productName ? (
                     <Text style={styles.itemMeta}>{item.productName}</Text>
                   ) : null}
@@ -126,6 +133,12 @@ const styles = StyleSheet.create({
   itemTextWrapper: {
     flex: 1,
   },
+  itemTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   itemsList: {
     gap: 8,
     paddingBottom: 8,
@@ -136,6 +149,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
+  },
+  pendingBadge: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  pendingBadgeText: {
+    color: colors.textSoft,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   title: {
     color: colors.text,

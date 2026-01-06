@@ -15,6 +15,10 @@ export interface AppRepository {
   getStoreCount(): Promise<number>;
   listStores(): Promise<StoreItem[]>;
   listProducts(search: string, storeId: number, locale: string): Promise<ProductListItem[]>;
+  listCategories(): Promise<string[]>;
+  createLocalProduct(payload: { name: string; category: string | null; locale: string }): Promise<number>;
+  listProductsNeedingSync(locale: string): Promise<Array<{ id: number; name: string; category: string | null }>>;
+  replaceProductId(localId: number, remoteId: number): Promise<void>;
   insertProduct(product: {
     id: number;
     name: string;
@@ -27,6 +31,46 @@ export interface AppRepository {
     storeId: number,
     locale: string
   ): Promise<ProductDetail | null>;
+  listShoppingLists(): Promise<Array<{ id: number; name: string; storeId: number | null; remoteId: number | null }>>;
+  createShoppingList(payload: { name: string; storeId: number | null }): Promise<{
+    id: number;
+    name: string;
+    storeId: number | null;
+    remoteId: number | null;
+  }>;
+  listShoppingListItems(
+    listId: number,
+    locale: string
+  ): Promise<Array<{
+    id: number;
+    listId: number;
+    productId: number | null;
+    label: string;
+    qty: string | null;
+    checked: number;
+    productName: string | null;
+  }>>;
+  addShoppingListItem(
+    listId: number,
+    payload: { productId?: number; label?: string; qty?: string | null }
+  ): Promise<number>;
+  toggleShoppingListItem(itemId: number, checked: boolean): Promise<void>;
+  listShoppingListsNeedingSync(): Promise<Array<{ id: number; name: string; storeId: number | null }>>;
+  listShoppingListItemsNeedingSync(): Promise<Array<{
+    id: number;
+    listId: number;
+    remoteId: number | null;
+    productId: number | null;
+    label: string | null;
+    qty: string | null;
+    checked: number;
+    updatedAt: string;
+    syncedAt: string | null;
+  }>>;
+  setShoppingListRemoteId(listId: number, remoteId: number): Promise<void>;
+  getShoppingListRemoteId(listId: number): Promise<number | null>;
+  setShoppingListItemRemoteId(itemId: number, remoteId: number): Promise<void>;
+  markShoppingListItemSynced(itemId: number): Promise<void>;
   createOutboxEvent(type: EventType, payload: Record<string, unknown>): Promise<string>;
   listOutboxEvents(limit: number): Promise<OutboxEventItem[]>;
   listPendingOutboxEvents(limit: number): Promise<OutboxEventItem[]>;

@@ -10,6 +10,9 @@ type Props = {
   tableCounts: Record<string, number>;
   outboxPending: OutboxEventItem[];
   outboxSent: OutboxEventItem[];
+  pendingProductsCount: number;
+  pendingListItemsCount: number;
+  pendingListsCount: number;
   lastSyncStats: Record<string, string> | null;
   isSyncing: boolean;
   onRefresh: () => void;
@@ -23,6 +26,9 @@ export default function DevPanel({
   tableCounts,
   outboxPending,
   outboxSent,
+  pendingProductsCount,
+  pendingListItemsCount,
+  pendingListsCount,
   lastSyncStats,
   isSyncing,
   onRefresh,
@@ -59,6 +65,27 @@ export default function DevPanel({
                   {key}: {value}
                 </Text>
               ))}
+              <Text style={styles.row}>
+                {t('dev.pendingProducts')}: {pendingProductsCount}
+              </Text>
+              <Text style={styles.row}>
+                {t('dev.pendingListItems')}: {pendingListItemsCount}
+              </Text>
+              <Text style={styles.row}>
+                {t('dev.pendingLists')}: {pendingListsCount}
+              </Text>
+            </View>
+            <View style={styles.section}>
+              <Text style={styles.meta}>{t('dev.pendingProducts')}</Text>
+              <Text style={styles.row}>{pendingProductsCount}</Text>
+            </View>
+            <View style={styles.section}>
+              <Text style={styles.meta}>{t('dev.pendingListItems')}</Text>
+              <Text style={styles.row}>{pendingListItemsCount}</Text>
+            </View>
+            <View style={styles.section}>
+              <Text style={styles.meta}>{t('dev.pendingLists')}</Text>
+              <Text style={styles.row}>{pendingListsCount}</Text>
             </View>
           </>
         ) : null}

@@ -63,15 +63,22 @@ export default function SearchPanel({
         data={products}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <Card mode="outlined" style={styles.card} onPress={() => onSelect(item.id)}>
-            <Card.Content>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardMeta}>
-                {t('label.zone')}: {item.zoneName ?? '-'}
-              </Text>
-            </Card.Content>
-          </Card>
-        )}
+            <Card mode="outlined" style={styles.card} onPress={() => onSelect(item.id)}>
+              <Card.Content>
+                <View style={styles.cardTitleRow}>
+                  <Text style={styles.cardTitle}>{item.name}</Text>
+                  {item.id < 0 ? (
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingBadgeText}>{t('product.pending')}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.cardMeta}>
+                  {t('label.zone')}: {item.zoneName ?? '-'}
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
         contentContainerStyle={styles.list}
       />
       {products.length === 0 ? (
@@ -144,6 +151,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  cardTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   categoryChip: {
     backgroundColor: colors.surfaceAlt,
   },
@@ -168,6 +181,20 @@ const styles = StyleSheet.create({
   },
   panel: {
     flex: 1,
+  },
+  pendingBadge: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  pendingBadgeText: {
+    color: colors.textSoft,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   searchInput: {
     backgroundColor: colors.surface,

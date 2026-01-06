@@ -20,7 +20,6 @@ import {
   loadStores,
   loadStoreCount,
   loadTableCounts,
-  addProduct,
   loadZones,
   recordOutboxEvent,
   resetWithPack,
@@ -84,7 +83,7 @@ async function postEvents(events: SyncEvent[], authToken: string) {
 }
 
 async function postProduct(
-  payload: { name: string; category?: string | null },
+  payload: { name: string; category?: string | null; locale?: string },
   authToken: string
 ) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -100,17 +99,7 @@ async function postProduct(
   return res.json();
 }
 
-async function fetchLists(authToken: string) {
-  const headers: Record<string, string> = {};
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
-  }
-  const res = await fetch(`${API_BASE_URL}/lists`, { headers });
-  if (!res.ok) throw new Error('Failed to fetch lists');
-  return res.json();
-}
-
-async function createList(payload: { name: string; storeId?: number | null }, authToken: string) {
+async function postList(payload: { name: string; storeId?: number | null }, authToken: string) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (authToken) {
     headers.Authorization = `Bearer ${authToken}`;
@@ -124,18 +113,7 @@ async function createList(payload: { name: string; storeId?: number | null }, au
   return res.json();
 }
 
-async function fetchListItems(listId: number, authToken: string, locale: string) {
-  const headers: Record<string, string> = {};
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
-  }
-  const lang = locale === 'en' ? 'en' : 'es';
-  const res = await fetch(`${API_BASE_URL}/lists/${listId}/items?lang=${lang}`, { headers });
-  if (!res.ok) throw new Error('Failed to fetch list items');
-  return res.json();
-}
-
-async function addListItemApi(
+async function postListItem(
   listId: number,
   payload: { productId?: number; label?: string; qty?: string | null },
   authToken: string,
@@ -154,7 +132,7 @@ async function addListItemApi(
   return res.json();
 }
 
-async function toggleListItemApi(
+async function patchListItem(
   listId: number,
   itemId: number,
   checked: boolean,
@@ -170,24 +148,6 @@ async function toggleListItemApi(
     body: JSON.stringify({ checked }),
   });
   if (!res.ok) throw new Error('Failed to update list item');
-  return res.json();
-}
-
-async function addListMemberApi(
-  listId: number,
-  payload: { userId: string; role?: 'owner' | 'editor' | 'viewer' },
-  authToken: string
-) {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
-  }
-  const res = await fetch(`${API_BASE_URL}/lists/${listId}/members`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error('Failed to add list member');
   return res.json();
 }
 
@@ -214,11 +174,13 @@ type HomeContextValue = {
   lists: ShoppingList[];
   activeListId: number | null;
   listItems: ShoppingListItem[];
+  pendingProductsCount: number;
+  pendingListItemsCount: number;
+  pendingListsCount: number;
   setActiveListId: (listId: number) => void;
   createShoppingList: (name: string) => Promise<void>;
   addShoppingListItem: (payload: { productId?: number; label?: string }) => Promise<void>;
   toggleShoppingListItem: (itemId: number, checked: boolean) => Promise<void>;
-  addShoppingListMember: (payload: { userId: string; role?: 'owner' | 'editor' | 'viewer' }) => Promise<void>;
   zones: ZoneItem[];
   selectedZoneId: number | null;
   setSelectedZoneId: (zoneId: number) => void;
@@ -266,6 +228,9 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [activeListId, setActiveListIdState] = useState<number | null>(null);
   const [listItems, setListItems] = useState<ShoppingListItem[]>([]);
+  const [pendingProductsCount, setPendingProductsCount] = useState(0);
+  const [pendingListItemsCount, setPendingListItemsCount] = useState(0);
+  const [pendingListsCount, setPendingListsCount] = useState(0);
   const [search, setSearchValue] = useState('');
   const [zones, setZones] = useState<ZoneItem[]>([]);
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(null);
@@ -293,15 +258,21 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
 
   const refreshDevData = useCallback(async () => {
     const counts = await loadTableCounts(repo);
-    const [pending, allEvents] = await Promise.all([
+    const [pending, allEvents, pendingProducts, pendingListItems, pendingLists] = await Promise.all([
       loadPendingOutboxEvents(repo, 20),
       loadOutboxEvents(repo, 50),
+      repo.listProductsNeedingSync(language),
+      repo.listShoppingListItemsNeedingSync(),
+      repo.listShoppingListsNeedingSync(),
     ]);
     const sent = allEvents.filter((eventItem) => eventItem.sent_at);
     setTableCounts(counts);
     setOutboxPending(pending);
     setOutboxSent(sent.slice(0, 20));
-  }, [repo]);
+    setPendingProductsCount(pendingProducts.length);
+    setPendingListItemsCount(pendingListItems.length);
+    setPendingListsCount(pendingLists.length);
+  }, [language, repo]);
 
   const refreshSyncMeta = useCallback(async () => {
     const [at, status, error] = await Promise.all([
@@ -337,40 +308,56 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   );
 
   const refreshCategories = useCallback(async () => {
-    const token = authToken.trim();
-    if (!token) {
-      setCategories([]);
-      return;
-    }
     try {
-      const res = await fetch(`${API_BASE_URL}/categories?lang=${language}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to load categories');
-      const data = (await res.json()) as Array<{ id: number; name: string }>;
-      setCategories(data.map((item) => item.name));
+      const data = await repo.listCategories();
+      setCategories(data);
     } catch (error) {
-      console.error('Failed to fetch categories', error);
+      console.error('Failed to load categories', error);
       setCategories([]);
     }
-  }, [authToken, language]);
+  }, [repo]);
+
+  const syncProductsIfNeeded = useCallback(
+    async () => {
+      const token = authToken.trim();
+      if (!token) return;
+      const pending = await repo.listProductsNeedingSync(language);
+      for (const product of pending) {
+        try {
+          const created = await postProduct(
+            { name: product.name, category: product.category, locale: language },
+            token
+          );
+          const remoteId = Number(created.id);
+          if (!Number.isNaN(remoteId)) {
+            await repo.replaceProductId(product.id, remoteId);
+          }
+        } catch (error) {
+          console.error('Failed to sync product', error);
+        }
+      }
+    },
+    [authToken, language, repo]
+  );
 
   const refreshLists = useCallback(async () => {
-    const token = authToken.trim();
-    if (!token) {
-      setLists([]);
-      return;
-    }
-    try {
-      const data = (await fetchLists(token)) as ShoppingList[];
-      setLists(data);
-      if (!activeListId && data.length > 0) {
-        setActiveListIdState(data[0].id);
+    const data = await repo.listShoppingLists();
+    const mapped = data.map((row) => ({
+      id: Number(row.id),
+      name: row.name,
+      storeId: row.storeId ?? null,
+      role: row.remoteId ? 'owner' : 'owner',
+    }));
+    setLists(mapped);
+    if (mapped.length > 0) {
+      const hasActive = activeListId
+        ? mapped.some((list) => list.id === activeListId)
+        : false;
+      if (!hasActive) {
+        setActiveListIdState(mapped[0].id);
       }
-    } catch (error) {
-      console.error('Failed to fetch lists', error);
     }
-  }, [activeListId, authToken]);
+  }, [activeListId, repo]);
 
   const refreshListItems = useCallback(
     async (listId = activeListId) => {
@@ -378,19 +365,70 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
         setListItems([]);
         return;
       }
+      const data = await repo.listShoppingListItems(listId, language);
+      setListItems(
+        data.map((row) => ({
+          id: Number(row.id),
+          listId: Number(row.listId),
+          productId: row.productId ? Number(row.productId) : null,
+          label: row.label,
+          qty: row.qty ?? null,
+          checked: Boolean(row.checked),
+          productName: row.productName ?? null,
+        }))
+      );
+    },
+    [activeListId, language, repo]
+  );
+
+  const syncListsIfNeeded = useCallback(
+    async () => {
       const token = authToken.trim();
-      if (!token) {
-        setListItems([]);
-        return;
+      if (!token) return;
+
+      const pendingLists = await repo.listShoppingListsNeedingSync();
+      for (const list of pendingLists) {
+        try {
+          const created = await postList({ name: list.name, storeId: list.storeId }, token);
+          const remoteId = Number(created.id);
+          if (!Number.isNaN(remoteId)) {
+            await repo.setShoppingListRemoteId(list.id, remoteId);
+          }
+        } catch (error) {
+          console.error('Failed to sync list', error);
+        }
       }
-      try {
-        const data = (await fetchListItems(listId, token, language)) as ShoppingListItem[];
-        setListItems(data);
-      } catch (error) {
-        console.error('Failed to fetch list items', error);
+
+      const pendingItems = await repo.listShoppingListItemsNeedingSync();
+      for (const item of pendingItems) {
+        const remoteListId = await repo.getShoppingListRemoteId(item.listId);
+        if (!remoteListId) continue;
+        if (!item.remoteId) {
+          try {
+            const created = await postListItem(
+              remoteListId,
+              { productId: item.productId ?? undefined, label: item.label ?? undefined, qty: item.qty ?? undefined },
+              token,
+              language
+            );
+            const remoteItemId = Number(created.id);
+            if (!Number.isNaN(remoteItemId)) {
+              await repo.setShoppingListItemRemoteId(item.id, remoteItemId);
+            }
+          } catch (error) {
+            console.error('Failed to sync list item', error);
+          }
+        } else if (!item.syncedAt || item.updatedAt > item.syncedAt) {
+          try {
+            await patchListItem(remoteListId, item.remoteId, Boolean(item.checked), token);
+            await repo.markShoppingListItemSynced(item.id);
+          } catch (error) {
+            console.error('Failed to sync list item update', error);
+          }
+        }
       }
     },
-    [activeListId, authToken, language]
+    [authToken, language, repo]
   );
 
   const setActiveListId = useCallback(
@@ -405,27 +443,21 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
 
   const createShoppingList = useCallback(
     async (name: string) => {
-      const token = authToken.trim();
-      if (!token) {
-        setStatusKey('status.authRequired');
-        setStatusParams({});
-        return;
-      }
       try {
         const storeId = activeStoreId ?? fallbackStoreId(pack);
-        const created = (await createList({ name, storeId }, token)) as ShoppingList;
+        const created = await repo.createShoppingList({ name, storeId });
         await refreshLists();
-        setActiveListIdState(created.id);
+        setActiveListIdState(Number(created.id));
         setStatusKey('status.listCreated');
         setStatusParams({ name: created.name });
-        await refreshListItems(created.id);
+        await refreshListItems(Number(created.id));
       } catch (error) {
         const message = getErrorMessage(error);
         setStatusKey('status.listCreateFailed');
         setStatusParams({ message });
       }
     },
-    [activeStoreId, authToken, pack, refreshListItems, refreshLists]
+    [activeStoreId, pack, refreshListItems, refreshLists, repo]
   );
 
   const addShoppingListItem = useCallback(
@@ -436,14 +468,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
         setStatusParams({});
         return;
       }
-      const token = authToken.trim();
-      if (!token) {
-        setStatusKey('status.authRequired');
-        setStatusParams({});
-        return;
-      }
       try {
-        await addListItemApi(listId, payload, token, language);
+        await repo.addShoppingListItem(listId, payload);
         await refreshListItems(listId);
         setStatusKey('status.listItemAdded');
         setStatusParams({});
@@ -453,25 +479,19 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
         setStatusParams({ message });
       }
     },
-    [activeListId, authToken, language, refreshListItems]
+    [activeListId, refreshListItems, repo]
   );
 
   const toggleShoppingListItem = useCallback(
     async (itemId: number, checked: boolean) => {
       const listId = activeListId;
       if (!listId) return;
-      const token = authToken.trim();
-      if (!token) {
-        setStatusKey('status.authRequired');
-        setStatusParams({});
-        return;
-      }
       const previous = listItems;
       setListItems((items) =>
         items.map((item) => (item.id === itemId ? { ...item, checked } : item))
       );
       try {
-        await toggleListItemApi(listId, itemId, checked, token);
+        await repo.toggleShoppingListItem(itemId, checked);
       } catch (error) {
         setListItems(previous);
         const message = getErrorMessage(error);
@@ -479,34 +499,7 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
         setStatusParams({ message });
       }
     },
-    [activeListId, authToken, listItems]
-  );
-
-  const addShoppingListMember = useCallback(
-    async (payload: { userId: string; role?: 'owner' | 'editor' | 'viewer' }) => {
-      const listId = activeListId;
-      if (!listId) {
-        setStatusKey('status.listSelectRequired');
-        setStatusParams({});
-        return;
-      }
-      const token = authToken.trim();
-      if (!token) {
-        setStatusKey('status.authRequired');
-        setStatusParams({});
-        return;
-      }
-      try {
-        await addListMemberApi(listId, payload, token);
-        setStatusKey('status.listMemberAdded');
-        setStatusParams({});
-      } catch (error) {
-        const message = getErrorMessage(error);
-        setStatusKey('status.listMemberFailed');
-        setStatusParams({ message });
-      }
-    },
-    [activeListId, authToken]
+    [activeListId, listItems, repo]
   );
 
   useEffect(() => {
@@ -625,12 +618,14 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       refreshZones();
       refreshDevData();
       refreshSyncMeta();
+      refreshCategories();
       refreshSessionIfNeeded().catch((error) => {
         console.error('Auth refresh failed', error);
       });
     }
   }, [
     isReady,
+    refreshCategories,
     refreshDevData,
     refreshListData,
     refreshSyncMeta,
@@ -639,11 +634,10 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
   ]);
 
   useEffect(() => {
-    if (isReady && isAuthenticated) {
-      refreshCategories();
+    if (isReady) {
       refreshLists();
     }
-  }, [isAuthenticated, isReady, refreshCategories, refreshLists]);
+  }, [isReady, refreshLists]);
 
   useEffect(() => {
     if (isReady) {
@@ -836,6 +830,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       await refreshListData();
       await refreshZones();
       await refreshDevData();
+      await syncProductsIfNeeded();
+      await syncListsIfNeeded();
       const now = new Date().toISOString();
       await repo.setMetaValue('sync_last_at', now);
       await repo.setMetaValue('sync_last_status', 'ok');
@@ -876,6 +872,8 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
     refreshListData,
     refreshSyncMeta,
     refreshZones,
+    syncListsIfNeeded,
+    syncProductsIfNeeded,
     repo,
   ]);
 
@@ -904,32 +902,24 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
 
   const createProduct = useCallback(
     async (name: string, category?: string | null) => {
-      const token = authToken.trim();
-      if (!token) {
-        setStatusKey('status.authRequired');
-        setStatusParams({});
-        return;
-      }
       try {
-        const created = await postProduct({ name, category, locale: language }, token);
-        await addProduct(repo, {
-          id: Number(created.id),
-          name: created.name,
-          category: created.category ?? null,
+        await repo.createLocalProduct({
+          name,
+          category: category ?? null,
           locale: language,
         });
         await refreshCategories();
         await refreshListData(search, activeStoreId);
         await refreshDevData();
         setStatusKey('status.productCreated');
-        setStatusParams({ name: created.name });
+        setStatusParams({ name });
       } catch (error) {
         const message = getErrorMessage(error);
         setStatusKey('status.productCreateFailed');
         setStatusParams({ message });
       }
     },
-    [activeStoreId, authToken, language, refreshCategories, refreshDevData, refreshListData, repo, search]
+    [activeStoreId, language, refreshCategories, refreshDevData, refreshListData, repo, search]
   );
 
   const value = useMemo<HomeContextValue>(
@@ -956,11 +946,13 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       lists,
       activeListId,
       listItems,
+      pendingProductsCount,
+      pendingListItemsCount,
+      pendingListsCount,
       setActiveListId,
       createShoppingList,
       addShoppingListItem,
       toggleShoppingListItem,
-      addShoppingListMember,
       zones,
       selectedZoneId,
       setSelectedZoneId,
@@ -1009,11 +1001,13 @@ export const HomeProvider = ({ repo, pack, children }: ProviderProps) => {
       lists,
       activeListId,
       listItems,
+      pendingProductsCount,
+      pendingListItemsCount,
+      pendingListsCount,
       setActiveListId,
       createShoppingList,
       addShoppingListItem,
       toggleShoppingListItem,
-      addShoppingListMember,
       refreshCategories,
       refreshDevData,
       search,

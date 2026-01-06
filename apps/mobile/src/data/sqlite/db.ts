@@ -77,6 +77,32 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
       sent_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS shopping_lists (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      remote_id INTEGER,
+      name TEXT NOT NULL,
+      store_id INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      synced_at TEXT,
+      FOREIGN KEY(store_id) REFERENCES stores(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS shopping_list_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      remote_id INTEGER,
+      list_id INTEGER NOT NULL,
+      product_id INTEGER,
+      label TEXT,
+      qty TEXT,
+      checked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      synced_at TEXT,
+      FOREIGN KEY(list_id) REFERENCES shopping_lists(id),
+      FOREIGN KEY(product_id) REFERENCES products(id)
+    );
+
     CREATE TABLE IF NOT EXISTS app_meta (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -88,6 +114,8 @@ export async function initDatabase(db: SQLite.SQLiteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_product_variants_product ON product_variants (product_id);
     CREATE INDEX IF NOT EXISTS idx_product_locations_store_updated ON product_locations (store_id, updated_at);
     CREATE INDEX IF NOT EXISTS idx_outbox_events_sent_at ON outbox_events (sent_at);
+    CREATE INDEX IF NOT EXISTS idx_shopping_lists_remote ON shopping_lists (remote_id);
+    CREATE INDEX IF NOT EXISTS idx_shopping_list_items_list ON shopping_list_items (list_id);
   `);
 }
 
@@ -100,6 +128,160 @@ export async function getStoreCount(db: SQLite.SQLiteDatabase) {
 
 export async function listStores(db: SQLite.SQLiteDatabase) {
   return db.getAllAsync<StoreItem>('SELECT id, name FROM stores ORDER BY name ASC');
+}
+
+export async function listShoppingLists(db: SQLite.SQLiteDatabase) {
+  return db.getAllAsync<{ id: number; name: string; storeId: number | null; remoteId: number | null }>(
+    'SELECT id, name, store_id as storeId, remote_id as remoteId FROM shopping_lists ORDER BY created_at DESC'
+  );
+}
+
+export async function createShoppingListLocal(
+  db: SQLite.SQLiteDatabase,
+  payload: { name: string; storeId: number | null }
+) {
+  const now = new Date().toISOString();
+  const result = await db.runAsync(
+    'INSERT INTO shopping_lists (name, store_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
+    [payload.name, payload.storeId, now, now]
+  );
+  return {
+    id: result.lastInsertRowId ?? 0,
+    name: payload.name,
+    storeId: payload.storeId,
+    remoteId: null,
+  };
+}
+
+export async function listShoppingListItems(db: SQLite.SQLiteDatabase, listId: number, locale: string) {
+  return db.getAllAsync<{
+    id: number;
+    listId: number;
+    productId: number | null;
+    label: string;
+    qty: string | null;
+    checked: number;
+    productName: string | null;
+  }>(
+    `
+    SELECT
+      i.id as id,
+      i.list_id as listId,
+      i.product_id as productId,
+      COALESCE(i.label, pt.name, p.name, '') as label,
+      i.qty as qty,
+      i.checked as checked,
+      COALESCE(pt.name, p.name) as productName
+    FROM shopping_list_items i
+    LEFT JOIN products p ON p.id = i.product_id
+    LEFT JOIN product_translations pt ON pt.product_id = p.id AND pt.locale = ?
+    WHERE i.list_id = ?
+    ORDER BY i.created_at ASC
+    `,
+    [locale, listId]
+  );
+}
+
+export async function addShoppingListItemLocal(
+  db: SQLite.SQLiteDatabase,
+  listId: number,
+  payload: { productId?: number; label?: string; qty?: string | null }
+) {
+  const now = new Date().toISOString();
+  const result = await db.runAsync(
+    `
+    INSERT INTO shopping_list_items (list_id, product_id, label, qty, checked, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 0, ?, ?)
+    `,
+    [listId, payload.productId ?? null, payload.label ?? null, payload.qty ?? null, now, now]
+  );
+  return result.lastInsertRowId ?? 0;
+}
+
+export async function toggleShoppingListItemLocal(
+  db: SQLite.SQLiteDatabase,
+  itemId: number,
+  checked: boolean
+) {
+  const now = new Date().toISOString();
+  await db.runAsync(
+    'UPDATE shopping_list_items SET checked = ?, updated_at = ? WHERE id = ?',
+    [checked ? 1 : 0, now, itemId]
+  );
+}
+
+export async function listShoppingListsNeedingSync(db: SQLite.SQLiteDatabase) {
+  return db.getAllAsync<{
+    id: number;
+    name: string;
+    storeId: number | null;
+  }>('SELECT id, name, store_id as storeId FROM shopping_lists WHERE remote_id IS NULL');
+}
+
+export async function listShoppingListItemsNeedingSync(db: SQLite.SQLiteDatabase) {
+  return db.getAllAsync<{
+    id: number;
+    listId: number;
+    remoteId: number | null;
+    productId: number | null;
+    label: string | null;
+    qty: string | null;
+    checked: number;
+    updatedAt: string;
+    syncedAt: string | null;
+  }>(
+    `
+    SELECT
+      id,
+      list_id as listId,
+      remote_id as remoteId,
+      product_id as productId,
+      label,
+      qty,
+      checked,
+      updated_at as updatedAt,
+      synced_at as syncedAt
+    FROM shopping_list_items
+    WHERE remote_id IS NULL OR synced_at IS NULL OR updated_at > synced_at
+    `
+  );
+}
+
+export async function setShoppingListRemoteId(
+  db: SQLite.SQLiteDatabase,
+  listId: number,
+  remoteId: number
+) {
+  const now = new Date().toISOString();
+  await db.runAsync(
+    'UPDATE shopping_lists SET remote_id = ?, synced_at = ?, updated_at = ? WHERE id = ?',
+    [remoteId, now, now, listId]
+  );
+}
+
+export async function getShoppingListRemoteId(db: SQLite.SQLiteDatabase, listId: number) {
+  const row = await db.getFirstAsync<{ remote_id: number | null }>(
+    'SELECT remote_id FROM shopping_lists WHERE id = ?',
+    [listId]
+  );
+  return row?.remote_id ?? null;
+}
+
+export async function setShoppingListItemRemoteId(
+  db: SQLite.SQLiteDatabase,
+  itemId: number,
+  remoteId: number
+) {
+  const now = new Date().toISOString();
+  await db.runAsync(
+    'UPDATE shopping_list_items SET remote_id = ?, synced_at = ?, updated_at = ? WHERE id = ?',
+    [remoteId, now, now, itemId]
+  );
+}
+
+export async function markShoppingListItemSynced(db: SQLite.SQLiteDatabase, itemId: number) {
+  const now = new Date().toISOString();
+  await db.runAsync('UPDATE shopping_list_items SET synced_at = ? WHERE id = ?', [now, itemId]);
 }
 
 export async function getMetaValue(db: SQLite.SQLiteDatabase, key: string) {
@@ -195,6 +377,79 @@ export async function listProducts(
   return rows;
 }
 
+export async function listCategories(db: SQLite.SQLiteDatabase) {
+  const rows = await db.getAllAsync<{ category: string }>(
+    `
+    SELECT DISTINCT category
+    FROM products
+    WHERE category IS NOT NULL AND TRIM(category) <> ''
+    ORDER BY LOWER(category) ASC
+    `
+  );
+  return rows.map((row) => row.category);
+}
+
+export async function createLocalProduct(
+  db: SQLite.SQLiteDatabase,
+  payload: { name: string; category: string | null; locale: string }
+) {
+  const now = new Date().toISOString();
+  const localId = -Math.floor(Date.now() + Math.random() * 1000);
+  await db.runAsync('INSERT INTO products (id, name, category) VALUES (?, ?, ?)', [
+    localId,
+    payload.name,
+    payload.category ?? null,
+  ]);
+  await db.runAsync(
+    'INSERT OR REPLACE INTO product_translations (product_id, locale, name, created_at) VALUES (?, ?, ?, ?)',
+    [localId, payload.locale, payload.name, now]
+  );
+  return localId;
+}
+
+export async function listProductsNeedingSync(db: SQLite.SQLiteDatabase, locale: string) {
+  return db.getAllAsync<{
+    id: number;
+    name: string;
+    category: string | null;
+  }>(
+    `
+    SELECT
+      p.id as id,
+      COALESCE(pt.name, p.name) as name,
+      p.category as category
+    FROM products p
+    LEFT JOIN product_translations pt ON pt.product_id = p.id AND pt.locale = ?
+    WHERE p.id < 0
+    `,
+    [locale]
+  );
+}
+
+export async function replaceProductId(
+  db: SQLite.SQLiteDatabase,
+  localId: number,
+  remoteId: number
+) {
+  await db.runAsync('UPDATE products SET id = ? WHERE id = ?', [remoteId, localId]);
+  await db.runAsync('UPDATE product_translations SET product_id = ? WHERE product_id = ?', [
+    remoteId,
+    localId,
+  ]);
+  await db.runAsync('UPDATE product_variants SET product_id = ? WHERE product_id = ?', [
+    remoteId,
+    localId,
+  ]);
+  await db.runAsync('UPDATE product_locations SET product_id = ? WHERE product_id = ?', [
+    remoteId,
+    localId,
+  ]);
+  await db.runAsync('UPDATE shopping_list_items SET product_id = ? WHERE product_id = ?', [
+    remoteId,
+    localId,
+  ]);
+}
+
 export async function insertProduct(
   db: SQLite.SQLiteDatabase,
   product: { id: number; name: string; category: string | null; locale: string }
@@ -280,6 +535,8 @@ export async function getTableCounts(db: SQLite.SQLiteDatabase) {
     'product_variants',
     'product_locations',
     'outbox_events',
+    'shopping_lists',
+    'shopping_list_items',
   ];
   const counts: Record<string, number> = {};
   for (const table of tables) {
@@ -297,6 +554,8 @@ export async function resetDatabase(db: SQLite.SQLiteDatabase) {
     DELETE FROM product_variants;
     DELETE FROM product_translations;
     DELETE FROM products;
+    DELETE FROM shopping_list_items;
+    DELETE FROM shopping_lists;
     DELETE FROM zones;
     DELETE FROM stores;
     DELETE FROM outbox_events;

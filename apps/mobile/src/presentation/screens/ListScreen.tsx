@@ -11,18 +11,18 @@ import colors from '@presentation/styles/colors';
 
 export default function ListScreen() {
   const {
+    lists,
+    activeListId,
+    setActiveListId,
+    createShoppingList,
+    listItems,
+    addShoppingListItem,
+    toggleShoppingListItem,
     products,
     search,
     setSearch,
     createProduct,
     categories,
-    lists,
-    activeListId,
-    listItems,
-    setActiveListId,
-    createShoppingList,
-    addShoppingListItem,
-    toggleShoppingListItem,
     t,
   } = useHome();
   const { width } = useWindowDimensions();
@@ -32,11 +32,10 @@ export default function ListScreen() {
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const drawerTranslateX = useRef(new Animated.Value(-drawerWidth)).current;
   const insets = useSafeAreaInsets();
-
-  const activeListName = useMemo(() => {
-    if (!activeListId) return null;
-    return lists.find((list) => list.id === activeListId)?.name ?? null;
-  }, [activeListId, lists]);
+  const activeListName = useMemo(
+    () => (activeListId ? lists.find((list) => list.id === activeListId)?.name ?? null : null),
+    [activeListId, lists]
+  );
 
   useEffect(() => {
     if (isDrawerOpen) {
@@ -103,21 +102,25 @@ export default function ListScreen() {
               <Text style={styles.listHint}>{t('list.createHint')}</Text>
             ) : null}
           </View>
-          <ShoppingListItemsPanel
-            listItems={listItems}
-            onToggleItem={toggleShoppingListItem}
-            onAddItem={addShoppingListItem}
-            t={t}
-          />
-          <SearchPanel
-            products={products}
-            search={search}
-            onSearchChange={setSearch}
-            onSelect={(productId) => addShoppingListItem({ productId })}
-            onCreateProduct={createProduct}
-            categories={categories}
-            t={t}
-          />
+          {activeListName ? (
+            <>
+              <ShoppingListItemsPanel
+                listItems={listItems}
+                onAddItem={addShoppingListItem}
+                onToggleItem={toggleShoppingListItem}
+                t={t}
+              />
+              <SearchPanel
+                products={products}
+                search={search}
+                onSearchChange={setSearch}
+                onSelect={(productId) => addShoppingListItem({ productId })}
+                onCreateProduct={createProduct}
+                categories={categories}
+                t={t}
+              />
+            </>
+          ) : null}
         </View>
       </View>
 
@@ -173,8 +176,7 @@ const styles = StyleSheet.create({
   },
   drawerPanel: {
     height: '100%',
-    paddingLeft: 16,
-    paddingVertical: 16,
+    padding: 0,
     width: 280,
   },
   layout: {
@@ -185,7 +187,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   listHeader: {
-    gap: 4,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 6,
+    padding: 16,
+    width: '100%',
   },
   listHint: {
     color: colors.textSoft,

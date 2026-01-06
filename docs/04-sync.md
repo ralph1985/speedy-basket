@@ -42,6 +42,14 @@ Incluye:
 - GET /lists (auth requerida): lista cestas del usuario.
 - GET /lists/:id/items?lang=es|en (auth requerida): items con nombre traducido.
 
+## Offline-first (app)
+
+- Productos y cestas se crean en SQLite con ids locales negativos.
+- En Sync:
+  - Se envian productos locales y se remapean ids en SQLite.
+  - Se envian cestas e items pendientes cuando ya existe el id remoto.
+- La UI muestra "pendiente de sync" para productos locales.
+
 ## Conflictos
 
 - Se resuelven en backend:

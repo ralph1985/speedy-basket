@@ -12,8 +12,11 @@ import {
   getMetaValue,
   importPack,
   importPackIfNeeded,
+  createLocalProduct,
   insertProduct,
   initDatabase,
+  listCategories,
+  listProductsNeedingSync,
   listOutboxEvents,
   listPendingOutboxEvents,
   listProducts,
@@ -23,6 +26,18 @@ import {
   markOutboxEventsSent,
   resetDatabase,
   setMetaValue,
+  listShoppingLists,
+  createShoppingListLocal,
+  listShoppingListItems,
+  addShoppingListItemLocal,
+  toggleShoppingListItemLocal,
+  listShoppingListsNeedingSync,
+  listShoppingListItemsNeedingSync,
+  setShoppingListRemoteId,
+  getShoppingListRemoteId,
+  setShoppingListItemRemoteId,
+  markShoppingListItemSynced,
+  replaceProductId,
 } from './db';
 
 export class SqliteRepository implements AppRepository {
@@ -45,6 +60,22 @@ export class SqliteRepository implements AppRepository {
     return listProducts(this.requireDb(), search, storeId, locale);
   }
 
+  async listCategories() {
+    return listCategories(this.requireDb());
+  }
+
+  async createLocalProduct(payload: { name: string; category: string | null; locale: string }) {
+    return createLocalProduct(this.requireDb(), payload);
+  }
+
+  async listProductsNeedingSync(locale: string) {
+    return listProductsNeedingSync(this.requireDb(), locale);
+  }
+
+  async replaceProductId(localId: number, remoteId: number) {
+    return replaceProductId(this.requireDb(), localId, remoteId);
+  }
+
   async insertProduct(product: {
     id: number;
     name: string;
@@ -60,6 +91,53 @@ export class SqliteRepository implements AppRepository {
 
   async getProductDetail(productId: number, storeId: number, locale: string) {
     return getProductDetail(this.requireDb(), productId, storeId, locale);
+  }
+
+  async listShoppingLists() {
+    return listShoppingLists(this.requireDb());
+  }
+
+  async createShoppingList(payload: { name: string; storeId: number | null }) {
+    return createShoppingListLocal(this.requireDb(), payload);
+  }
+
+  async listShoppingListItems(listId: number, locale: string) {
+    return listShoppingListItems(this.requireDb(), listId, locale);
+  }
+
+  async addShoppingListItem(
+    listId: number,
+    payload: { productId?: number; label?: string; qty?: string | null }
+  ) {
+    return addShoppingListItemLocal(this.requireDb(), listId, payload);
+  }
+
+  async toggleShoppingListItem(itemId: number, checked: boolean) {
+    return toggleShoppingListItemLocal(this.requireDb(), itemId, checked);
+  }
+
+  async listShoppingListsNeedingSync() {
+    return listShoppingListsNeedingSync(this.requireDb());
+  }
+
+  async listShoppingListItemsNeedingSync() {
+    return listShoppingListItemsNeedingSync(this.requireDb());
+  }
+
+  async setShoppingListRemoteId(listId: number, remoteId: number) {
+    return setShoppingListRemoteId(this.requireDb(), listId, remoteId);
+  }
+
+  async getShoppingListRemoteId(listId: number) {
+    return getShoppingListRemoteId(this.requireDb(), listId);
+  }
+
+  async setShoppingListItemRemoteId(itemId: number, remoteId: number) {
+    return setShoppingListItemRemoteId(this.requireDb(), itemId, remoteId);
+  }
+
+  async markShoppingListItemSynced(itemId: number) {
+    return markShoppingListItemSynced(this.requireDb(), itemId);
   }
 
   async createOutboxEvent(type: EventType, payload: Record<string, unknown>) {

@@ -8,6 +8,9 @@ export default function DevScreen() {
     tableCounts,
     outboxPending,
     outboxSent,
+    pendingProductsCount,
+    pendingListItemsCount,
+    pendingListsCount,
     lastSyncStats,
     isSyncing,
     refreshDevData,
@@ -23,6 +26,9 @@ export default function DevScreen() {
         tableCounts={tableCounts}
         outboxPending={outboxPending}
         outboxSent={outboxSent}
+        pendingProductsCount={pendingProductsCount}
+        pendingListItemsCount={pendingListItemsCount}
+        pendingListsCount={pendingListsCount}
         lastSyncStats={lastSyncStats}
         isSyncing={isSyncing}
         onRefresh={refreshDevData}
